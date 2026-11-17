@@ -71,6 +71,14 @@ test("search, inspect, and save a paper with a reading note, persisted across re
   await expect(savedRegion.getByText(paperTitle)).toBeVisible();
   await expect(page.getByLabel("Reading note")).toHaveValue(note);
   await expect(page.getByLabel("Reading status")).toHaveValue("useful");
+
+  // The saved source's abstract and metadata stay inspectable after saving
+  // and reloading, still presented as reading material rather than a citation.
+  await savedRegion.getByRole("button", { name: "Inspect" }).click();
+  const reopened = page.getByRole("dialog");
+  await expect(reopened.getByText(/retinal ganglion cells/)).toBeVisible();
+  await expect(reopened.getByText("DOI: 10.1038/s41586-020-2975-4")).toBeVisible();
+  await expect(reopened.getByText(/not an approved citation/)).toBeVisible();
 });
 
 test("saved sources stay isolated per project across switches and reloads", async ({

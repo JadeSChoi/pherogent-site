@@ -118,6 +118,24 @@ describe("Library", () => {
     expect(status.value).toBe("useful");
   });
 
+  it("reopens a saved source's abstract and metadata from the saved list", async () => {
+    stubSearch();
+    render(<Harness />);
+    await searchFixture();
+    fireEvent.click(screen.getByRole("button", { name: /Inspect/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save to project" }));
+
+    const saved = screen.getByRole("region", { name: "Saved sources" });
+    fireEvent.click(within(saved).getByRole("button", { name: /Inspect/ }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText(/retinal ganglion cells/)).toBeTruthy();
+    expect(within(dialog).getByText(/10\.1038\/s41586-020-2975-4/)).toBeTruthy();
+    // Reopening a saved source still presents it as reading material,
+    // not an approved citation.
+    expect(within(dialog).getByText(/not an approved citation/i)).toBeTruthy();
+  });
+
   it("reports a failed search without inventing results", async () => {
     vi.stubGlobal(
       "fetch",

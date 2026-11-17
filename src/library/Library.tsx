@@ -78,6 +78,9 @@ export function Library({ project, onProjectChange }: LibraryProps) {
                 <p className="library-source-standing">
                   Saved for reading — not an approved citation
                 </p>
+                <div className="library-result-actions">
+                  <Button onClick={() => setInspected(source.paper)}>Inspect</Button>
+                </div>
                 <div className="library-source-fields">
                   <TextArea
                     label="Reading note"
@@ -186,14 +189,18 @@ export function Library({ project, onProjectChange }: LibraryProps) {
                 Open on Europe PMC
               </a>
             </p>
-            <p className="library-hint">
-              Saving adds this paper to your project&rsquo;s saved sources for
-              reading. It does not approve evidence or insert a citation.
-            </p>
+            {savedIds.has(inspected.id) ? (
+              <p className="library-hint">
+                In your saved sources for reading — not an approved citation.
+              </p>
+            ) : (
+              <p className="library-hint">
+                Saving adds this paper to your project&rsquo;s saved sources for
+                reading. It does not approve evidence or insert a citation.
+              </p>
+            )}
             <div className="library-inspect-actions">
-              {savedIds.has(inspected.id) ? (
-                <p className="library-source-standing">Already in your saved sources.</p>
-              ) : (
+              {!savedIds.has(inspected.id) && (
                 <Button variant="primary" onClick={() => save(inspected)}>
                   Save to project
                 </Button>
