@@ -12,9 +12,9 @@
     {
       "binding": "DB",
       "database_name": "pherogent",
-      // Placeholder until the owner provisions the real database; local dev
-      // and tests emulate D1 and never contact this id. See docs/deploy.md.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // The owner's real database, provisioned via scripts/setup-cloudflare.sh;
+      // local dev and tests emulate D1 and never contact this id.
+      "database_id": "2bf2b6be-707e-474f-a112-b3f8073618dc",
       "migrations_dir": "migrations"
     }
   ],
