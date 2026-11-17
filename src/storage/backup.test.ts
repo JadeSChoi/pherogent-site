@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { exportBackup, importBackup } from "./backup";
-import { createProject, createWorkspace, withManuscriptUpdate, withNotebookUpdate, withSavedSource, withSourceUpdate } from "./workspace";
+import { createProject, createWorkspace, withManuscriptUpdate, withNotebookUpdate, withSavedSource, withSectionUpdate, withSourceUpdate } from "./workspace";
 import v2MultiProject from "./fixtures/v2-multi-project.json";
 import v2WithRecovery from "./fixtures/v2-with-recovery.json";
 
@@ -202,7 +202,7 @@ describe("imported source links", () => {
 });
 
 describe("notebook and manuscript in backups", () => {
-  it("round-trips the notebook and manuscript through export and import", () => {
+  it("round-trips the notebook and sectioned manuscript through export and import", () => {
     const workspace = createWorkspace();
     workspace.projects[0] = withNotebookUpdate(workspace.projects[0], {
       findings: "OSK restores vision in mice.",
@@ -210,12 +210,90 @@ describe("notebook and manuscript in backups", () => {
     });
     workspace.projects[0] = withManuscriptUpdate(workspace.projects[0], {
       title: "Reprogramming draft",
-      text: "First paragraph.",
     });
+    workspace.projects[0] = withSectionUpdate(
+      workspace.projects[0],
+      workspace.projects[0].manuscript!.sections[0].id,
+      { heading: "Introduction", text: "First paragraph." },
+    );
 
     const result = importBackup(exportBackup(workspace));
 
     expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("migrates a pre-section v3 string manuscript into sections", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].manuscript = {
+      title: "Reprogramming draft",
+      text: "Opening paragraph.\n\n## Methods\n\nWe measured things.",
+    };
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const manuscript = result.workspace.projects[0].manuscript;
+    expect(manuscript?.title).toBe("Reprogramming draft");
+    expect(manuscript?.sections.map((s) => [s.heading, s.text])).toEqual([
+      ["", "Opening paragraph."],
+      ["Methods", "We measured things."],
+    ]);
+  });
+
+  it("keeps a v3 text's leading # line as text instead of dropping it", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].manuscript = {
+      title: "Stored title",
+      text: "# A pasted markdown heading\n\nOpening paragraph.",
+    };
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const manuscript = result.workspace.projects[0].manuscript;
+    expect(manuscript?.title).toBe("Stored title");
+    expect(manuscript?.sections[0].text).toBe(
+      "# A pasted markdown heading\n\nOpening paragraph.",
+    );
+  });
+
+  it("splits an oversized restored section instead of keeping it unbounded", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace));
+    const big = "z".repeat(50000);
+    raw.projects[0].manuscript = {
+      title: "",
+      sections: [{ id: "section-big", heading: "Results", text: big }],
+    };
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const sections = result.workspace.projects[0].manuscript!.sections;
+    expect(sections.length).toBeGreaterThan(1);
+    expect(sections[0].id).toBe("section-big");
+    expect(sections[0].heading).toBe("Results");
+    expect(sections.every((s) => s.text.length <= 20000)).toBe(true);
+    expect(sections.map((s) => s.text).join("")).toBe(big);
+  });
+
+  it("ports a v2 backup's draft into the sectioned manuscript", () => {
+    const result = importBackup(text(v2MultiProject));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const main = result.workspace.projects[0];
+    expect(main.manuscript?.title).toBe("Coral bleaching thresholds");
+    expect(main.manuscript?.sections.map((s) => [s.heading, s.text])).toEqual([
+      ["", "A fully invented paragraph about fixture reefs."],
+    ]);
+    // The full v2 payload stays parked under legacy regardless.
+    expect(main.legacy).toBeTruthy();
   });
 
   it("restores a damaged notebook to safe empty fields instead of rejecting", () => {

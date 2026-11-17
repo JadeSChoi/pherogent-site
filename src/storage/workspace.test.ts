@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { Paper } from "../library/europePmc";
 import {
+  MANUSCRIPT_GUARD,
+  SECTION_LIMIT,
   appendNotebookToManuscript,
   createProject,
+  manuscriptFromText,
   manuscriptMarkdown,
+  sectionsFromText,
   withManuscriptUpdate,
   withNotebookUpdate,
   withSavedSource,
+  withSectionAdded,
+  withSectionRemoved,
+  withSectionUpdate,
   withSourceUpdate,
 } from "./workspace";
 
@@ -88,30 +95,129 @@ describe("notebook and manuscript", () => {
     expect(again.notebook?.hypothesis).toBe("Reprogramming is reversible.");
   });
 
-  it("edits the manuscript title and text", () => {
+  it("edits the manuscript title and the text of one section", () => {
     const project = createProject("Vision recovery");
-    const next = withManuscriptUpdate(
-      withManuscriptUpdate(project, { title: "Reprogramming draft" }),
-      { text: "First paragraph." },
-    );
-    expect(next.manuscript).toEqual({ title: "Reprogramming draft", text: "First paragraph." });
-  });
-
-  it("exports the manuscript as Markdown with the project name as fallback title", () => {
-    const project = withManuscriptUpdate(createProject("Vision recovery"), {
+    let next = withManuscriptUpdate(project, { title: "Reprogramming draft" });
+    const sectionId = next.manuscript!.sections[0].id;
+    next = withSectionUpdate(next, sectionId, {
+      heading: "Introduction",
       text: "First paragraph.",
     });
-    expect(manuscriptMarkdown(project)).toBe("# Vision recovery\n\nFirst paragraph.\n");
-    const titled = withManuscriptUpdate(project, { title: "Reprogramming draft" });
-    expect(manuscriptMarkdown(titled)).toBe("# Reprogramming draft\n\nFirst paragraph.\n");
+    expect(next.manuscript?.title).toBe("Reprogramming draft");
+    expect(next.manuscript?.sections).toEqual([
+      { id: sectionId, heading: "Introduction", text: "First paragraph." },
+    ]);
+    expect(withSectionUpdate(next, "section-unknown", { text: "x" })).toBe(next);
+  });
+
+  it("adds and removes sections", () => {
+    let project = withManuscriptUpdate(createProject("Vision recovery"), {});
+    project = withSectionAdded(project);
+    expect(project.manuscript?.sections).toHaveLength(2);
+    const [first, second] = project.manuscript!.sections;
+    expect(second.id).not.toBe(first.id);
+    project = withSectionRemoved(project, first.id);
+    expect(project.manuscript?.sections.map((s) => s.id)).toEqual([second.id]);
+  });
+
+  it("exports the sections as one Markdown document", () => {
+    let project = withManuscriptUpdate(createProject("Vision recovery"), {
+      title: "Reprogramming draft",
+    });
+    const opening = project.manuscript!.sections[0].id;
+    project = withSectionUpdate(project, opening, { text: "Opening paragraph." });
+    project = withSectionAdded(project);
+    const second = project.manuscript!.sections[1].id;
+    project = withSectionUpdate(project, second, {
+      heading: "Methods",
+      text: "We measured things.",
+    });
+    expect(manuscriptMarkdown(project)).toBe(
+      "# Reprogramming draft\n\nOpening paragraph.\n\n## Methods\n\nWe measured things.\n",
+    );
+  });
+
+  it("falls back to the project name for the exported title", () => {
+    const project = createProject("Vision recovery");
+    expect(manuscriptMarkdown(project)).toBe("# Vision recovery\n");
+  });
+});
+
+describe("manuscriptFromText", () => {
+  it("splits on ## headings with a heading-less preamble section", () => {
+    const parsed = manuscriptFromText(
+      "Opening paragraph.\n\n## Methods\n\nWe measured things.\n\n## Results\n\nIt worked.",
+    );
+    expect(parsed.title).toBe("");
+    expect(
+      parsed.sections.map((s) => [s.heading, s.text]),
+    ).toEqual([
+      ["", "Opening paragraph."],
+      ["Methods", "We measured things."],
+      ["Results", "It worked."],
+    ]);
+  });
+
+  it("reads a leading # line as the document title", () => {
+    const parsed = manuscriptFromText("# Reprogramming draft\n\nOpening paragraph.");
+    expect(parsed.title).toBe("Reprogramming draft");
+    expect(parsed.sections.map((s) => [s.heading, s.text])).toEqual([
+      ["", "Opening paragraph."],
+    ]);
+  });
+
+  it("round-trips its own export", () => {
+    let project = withManuscriptUpdate(createProject("Vision recovery"), {
+      title: "Reprogramming draft",
+    });
+    project = withSectionUpdate(project, project.manuscript!.sections[0].id, {
+      text: "Opening paragraph.",
+    });
+    project = withSectionAdded(project);
+    project = withSectionUpdate(project, project.manuscript!.sections[1].id, {
+      heading: "Methods",
+      text: "We measured things.",
+    });
+
+    const parsed = manuscriptFromText(manuscriptMarkdown(project));
+
+    expect(parsed.title).toBe("Reprogramming draft");
+    expect(parsed.sections.map((s) => [s.heading, s.text])).toEqual(
+      project.manuscript!.sections.map((s) => [s.heading, s.text]),
+    );
+  });
+
+  it("yields one empty section for empty text", () => {
+    const parsed = manuscriptFromText("");
+    expect(parsed.sections.map((s) => [s.heading, s.text])).toEqual([["", ""]]);
+  });
+
+  it("splits an oversized body into capped continuation sections, losing nothing", () => {
+    const big = "y".repeat(SECTION_LIMIT * 2 + 5000);
+    const parsed = manuscriptFromText("## Results\n\n" + big);
+    expect(parsed.sections.length).toBe(3);
+    expect(parsed.sections[0].heading).toBe("Results");
+    for (const section of parsed.sections) {
+      expect(section.text.length).toBeLessThanOrEqual(SECTION_LIMIT);
+    }
+    expect(parsed.sections.map((s) => s.text).join("")).toBe(big);
+  });
+});
+
+describe("sectionsFromText", () => {
+  it("keeps a leading # line as body text instead of consuming it", () => {
+    const sections = sectionsFromText("# Not a title here\n\nBody follows.");
+    expect(sections.map((s) => [s.heading, s.text])).toEqual([
+      ["", "# Not a title here\n\nBody follows."],
+    ]);
   });
 });
 
 describe("appendNotebookToManuscript", () => {
-  it("appends findings and limitations as sections after the existing text", () => {
-    let project = withManuscriptUpdate(createProject("Vision recovery"), {
-      text: "Existing opening paragraph.",
-    });
+  it("appends findings and limitations as new sections after the existing ones", () => {
+    let project = withManuscriptUpdate(createProject("Vision recovery"), {});
+    const opening = project.manuscript!.sections[0].id;
+    project = withSectionUpdate(project, opening, { text: "Existing opening paragraph." });
     project = withNotebookUpdate(project, {
       findings: "OSK restores vision in mice.",
       limitations: "Mouse models only.",
@@ -120,20 +226,15 @@ describe("appendNotebookToManuscript", () => {
     const result = appendNotebookToManuscript(project);
 
     expect(result.outcome).toBe("appended");
-    expect(result.project.manuscript?.text).toBe(
-      "Existing opening paragraph.\n\n## Findings notes\n\nOSK restores vision in mice.\n\n## Limitations\n\nMouse models only.",
-    );
-  });
-
-  it("starts the manuscript with the notes when there is no text yet", () => {
-    const project = withNotebookUpdate(createProject("Vision recovery"), {
-      findings: "OSK restores vision in mice.",
-    });
-    const result = appendNotebookToManuscript(project);
-    expect(result.outcome).toBe("appended");
-    expect(result.project.manuscript?.text).toBe(
-      "## Findings notes\n\nOSK restores vision in mice.",
-    );
+    expect(
+      result.project.manuscript?.sections.map((s) => [s.heading, s.text]),
+    ).toEqual([
+      ["", "Existing opening paragraph."],
+      ["Findings notes", "OSK restores vision in mice."],
+      ["Limitations", "Mouse models only."],
+    ]);
+    // The pre-existing section is untouched, not rewritten.
+    expect(result.project.manuscript?.sections[0].id).toBe(opening);
   });
 
   it("reports empty when there are no findings or limitations to add", () => {
@@ -145,21 +246,47 @@ describe("appendNotebookToManuscript", () => {
     expect(result.project).toBe(project);
   });
 
-  it("reports duplicate instead of appending the same notes twice", () => {
+  it("detects a duplicate by section identity, not by substring", () => {
     let project = withNotebookUpdate(createProject("Vision recovery"), {
       findings: "OSK restores vision in mice.",
     });
     project = appendNotebookToManuscript(project).project;
-    const result = appendNotebookToManuscript(project);
-    expect(result.outcome).toBe("duplicate");
-    expect(result.project).toBe(project);
+    expect(appendNotebookToManuscript(project).outcome).toBe("duplicate");
+
+    // The same sentence inside a larger section is NOT a duplicate.
+    let embedded = withNotebookUpdate(createProject("Vision recovery"), {
+      findings: "OSK restores vision in mice.",
+    });
+    embedded = withSectionUpdate(embedded, embedded.manuscript?.sections[0].id ?? "", {
+      text: "As we argue, OSK restores vision in mice. More prose follows.",
+    });
+    expect(appendNotebookToManuscript(embedded).outcome).toBe("appended");
   });
 
-  it("reports too_long rather than exceeding the manuscript limit", () => {
-    let project = withManuscriptUpdate(createProject("Vision recovery"), {
-      text: "x".repeat(11990),
+  it("appends only the sections that are not already present", () => {
+    let project = withNotebookUpdate(createProject("Vision recovery"), {
+      findings: "OSK restores vision in mice.",
     });
-    project = withNotebookUpdate(project, { findings: "A long enough finding." });
+    project = appendNotebookToManuscript(project).project;
+    project = withNotebookUpdate(project, { limitations: "Mouse models only." });
+
+    const result = appendNotebookToManuscript(project);
+
+    expect(result.outcome).toBe("appended");
+    expect(
+      result.project.manuscript?.sections.map((s) => s.heading),
+    ).toEqual(["", "Findings notes", "Limitations"]);
+  });
+
+  it("reports too_long rather than exceeding the manuscript guard", () => {
+    let project = withManuscriptUpdate(createProject("Vision recovery"), {});
+    const big = "x".repeat(SECTION_LIMIT - 100);
+    for (let added = 0; added * big.length < MANUSCRIPT_GUARD; added++) {
+      project = withSectionAdded(project);
+      const last = project.manuscript!.sections.at(-1)!;
+      project = withSectionUpdate(project, last.id, { text: big });
+    }
+    project = withNotebookUpdate(project, { findings: "One more finding." });
     const result = appendNotebookToManuscript(project);
     expect(result.outcome).toBe("too_long");
     expect(result.project).toBe(project);

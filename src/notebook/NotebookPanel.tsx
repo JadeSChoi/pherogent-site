@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, Panel, TextArea } from "../ui";
 import {
-  MANUSCRIPT_LIMIT,
+  MANUSCRIPT_GUARD,
   appendNotebookToManuscript,
   emptyNotebook,
   type AppendOutcome,
@@ -20,7 +20,7 @@ const APPEND_MESSAGES: Record<AppendOutcome, string> = {
     "Findings and limitations were added to the manuscript, after your existing text.",
   empty: "Write findings or limitations first — hypotheses stay in the notebook.",
   duplicate: "These notes are already in the manuscript.",
-  too_long: `The notes would exceed the ${MANUSCRIPT_LIMIT.toLocaleString("en-US")} character manuscript limit.`,
+  too_long: `The notes would exceed the manuscript's ${MANUSCRIPT_GUARD.toLocaleString("en-US")} character safety limit.`,
 };
 
 type FieldSpec = {

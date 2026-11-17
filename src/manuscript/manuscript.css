@@ -1,28 +1,82 @@
-/* The Manuscript panel: the text itself is a reading surface, the controls
-   around it are chrome (Folio). */
+/* The Manuscript is a reading surface (Folio, ADR 0003/0004): one continuous
+   serif document. Title, headings, and section text are borderless fields
+   that sit in the flow of the page — a hairline appears only under the
+   focused field, and nothing renders as a separate box. */
 
 .manuscript-hint {
   margin: 0 0 var(--space-4);
   color: var(--color-ink-soft);
 }
 
-.manuscript-fields {
-  display: grid;
-  gap: var(--space-4);
-  max-width: 40rem;
+.manuscript-doc {
+  max-width: 44rem;
 }
 
-.manuscript-fields textarea {
+.manuscript-title,
+.manuscript-heading,
+.manuscript-text {
+  display: block;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-ink);
   font-family: var(--font-serif);
-  font-size: var(--text-base);
+}
+
+.manuscript-title:focus-visible,
+.manuscript-heading:focus-visible,
+.manuscript-text:focus-visible {
+  outline: none;
+  border-bottom-color: var(--color-rule-strong);
+}
+
+.manuscript-title::placeholder,
+.manuscript-heading::placeholder,
+.manuscript-text::placeholder {
+  color: var(--color-mute);
+}
+
+.manuscript-title {
+  font-size: var(--text-xl);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-4);
+}
+
+.manuscript-heading {
+  font-size: var(--text-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+.manuscript-section:first-of-type .manuscript-heading {
+  margin-top: 0;
+}
+
+.manuscript-text {
+  font-size: var(--text-reading);
   line-height: 1.6;
+  resize: vertical;
+  /* Grow with the writing so a long section never becomes a scrolling box
+     inside the page; the rows attribute is the fallback where unsupported. */
+  field-sizing: content;
+}
+
+.manuscript-remove {
+  margin-top: var(--space-1);
 }
 
 .manuscript-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-rule);
 }
 
 .manuscript-import-error {

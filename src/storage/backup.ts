@@ -1,11 +1,15 @@
 import type { Paper } from "../library/europePmc";
 import {
   READING_STATUSES,
+  createSection,
+  sectionsFromText,
+  splitSection,
   type Manuscript,
   type Notebook,
   type Project,
   type ReadingStatus,
   type SavedSource,
+  type Section,
   type Workspace,
 } from "./workspace";
 
@@ -80,9 +84,29 @@ function parseNotebook(x: unknown): Notebook | null {
   };
 }
 
+function parseSection(x: unknown): Section | null {
+  if (!isRecord(x)) return null;
+  return {
+    id: typeof x.id === "string" && x.id ? x.id : createSection().id,
+    heading: str(x.heading),
+    text: str(x.text),
+  };
+}
+
 function parseManuscript(x: unknown): Manuscript | null {
   if (!isRecord(x)) return null;
-  return { title: str(x.title), text: str(x.text) };
+  if (Array.isArray(x.sections)) {
+    const sections = x.sections
+      .map(parseSection)
+      .filter((section): section is Section => section !== null)
+      // An oversized stored section splits rather than staying unbounded.
+      .flatMap(splitSection);
+    return { title: str(x.title), sections: sections.length ? sections : [createSection()] };
+  }
+  // A pre-section (issue #8 era) v3 manuscript: one string, split per ADR
+  // 0004. sectionsFromText keeps a leading `# ` line as body text — the
+  // stored title wins, and no line may vanish in migration.
+  return { title: str(x.title), sections: sectionsFromText(str(x.text)) };
 }
 
 function parseProject(x: unknown): Project | null {
@@ -145,7 +169,7 @@ function projectFromV2(payload: Record<string, unknown>): Project | null {
   const draft = isRecord(payload.draft) ? payload.draft : {};
   const research = isRecord(payload.research) ? payload.research : {};
   const meta = isRecord(payload.meta) ? payload.meta : {};
-  return {
+  const project: Project = {
     id,
     name: typeof draft.title === "string" && draft.title ? draft.title : "Untitled project",
     question: typeof research.question === "string" ? research.question : "",
@@ -153,6 +177,17 @@ function projectFromV2(payload: Record<string, unknown>): Project | null {
       typeof meta.createdAt === "string" ? meta.createdAt : new Date().toISOString(),
     legacy: payload,
   };
+  // Port the v2 draft into the sectioned Manuscript (ADR 0004); the whole v2
+  // payload stays parked under legacy regardless, so nothing is dropped.
+  const draftTitle = str(draft.title);
+  const draftText = str(draft.text);
+  if (draftTitle || draftText.trim()) {
+    project.manuscript = {
+      title: draftTitle,
+      sections: sectionsFromText(draftText),
+    };
+  }
+  return project;
 }
 
 function parseV2(data: Record<string, unknown>): ImportResult {

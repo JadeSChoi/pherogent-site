@@ -1,7 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { createProject, withManuscriptUpdate, type Project } from "../storage/workspace";
+import {
+  SECTION_LIMIT,
+  createProject,
+  withSectionAdded,
+  withSectionUpdate,
+  type Project,
+} from "../storage/workspace";
 import { NotebookPanel } from "./NotebookPanel";
 
 function Harness({ initial }: { initial?: Project }) {
@@ -47,15 +53,20 @@ describe("NotebookPanel", () => {
     expect(screen.getByRole("status").textContent).toMatch(/write findings/i);
   });
 
-  it("refuses an append that would exceed the manuscript limit", () => {
-    const full = withManuscriptUpdate(createProject("Vision recovery"), {
-      text: "x".repeat(11990),
-    });
+  it("refuses an append that would exceed the manuscript safety limit", () => {
+    let full = createProject("Vision recovery");
+    const big = "x".repeat(SECTION_LIMIT);
+    // Fill the manuscript to the 500,000-character guard with full sections.
+    for (let chars = 0; chars < 500000; chars += big.length) {
+      full = withSectionAdded(full);
+      const last = full.manuscript!.sections.at(-1)!;
+      full = withSectionUpdate(full, last.id, { text: big });
+    }
     render(<Harness initial={full} />);
     fireEvent.change(screen.getByLabelText("Findings & interpretation"), {
       target: { value: "A finding that will not fit." },
     });
     fireEvent.click(screen.getByRole("button", { name: "Add notes to manuscript" }));
-    expect(screen.getByRole("status").textContent).toMatch(/12,000/);
+    expect(screen.getByRole("status").textContent).toMatch(/500,000/);
   });
 });

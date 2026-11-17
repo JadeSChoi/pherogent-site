@@ -1,10 +1,15 @@
 import { useRef, useState, type ChangeEvent } from "react";
-import { Button, Dialog, Panel, TextArea, TextInput } from "../ui";
+import { Button, Dialog, Panel } from "../ui";
 import {
-  MANUSCRIPT_LIMIT,
-  emptyManuscript,
+  SECTION_LIMIT,
+  defaultManuscript,
+  manuscriptFromText,
   manuscriptMarkdown,
   withManuscriptUpdate,
+  withSectionAdded,
+  withSectionRemoved,
+  withSectionUpdate,
+  type Manuscript,
   type Project,
 } from "../storage/workspace";
 import "./manuscript.css";
@@ -14,15 +19,22 @@ type ManuscriptPanelProps = {
   onProjectChange: (next: Project) => void;
 };
 
+const hasWriting = (manuscript: Manuscript) =>
+  manuscript.sections.some((section) => section.heading.trim() || section.text.trim());
+
+/** Rows that track the text so the page flows instead of scrolling boxes. */
+const rowsFor = (text: string) =>
+  Math.min(40, Math.max(3, text.split("\n").length + 1));
+
 export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelProps) {
   const [importError, setImportError] = useState<string>();
-  const [pendingImport, setPendingImport] = useState<string>();
+  const [pendingImport, setPendingImport] = useState<Manuscript>();
   const fileInput = useRef<HTMLInputElement>(null);
   // The freshest project across the await in readImport: committing a stale
   // snapshot there would silently undo edits made while the file was read.
   const latest = useRef(project);
   latest.current = project;
-  const manuscript = project.manuscript ?? emptyManuscript();
+  const manuscript = project.manuscript ?? defaultManuscript(project);
 
   const download = () => {
     const url = URL.createObjectURL(
@@ -35,6 +47,16 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const applyImport = (imported: Manuscript) => {
+    const current = latest.current;
+    const title =
+      imported.title || (current.manuscript ?? defaultManuscript(current)).title;
+    onProjectChange({
+      ...current,
+      manuscript: { title, sections: imported.sections },
+    });
   };
 
   const readImport = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -53,39 +75,34 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
       setImportError("The file could not be read. Nothing was changed.");
       return;
     }
-    if (text.length > MANUSCRIPT_LIMIT) {
-      setImportError(
-        `Import up to ${MANUSCRIPT_LIMIT.toLocaleString("en-US")} characters at a time. Nothing was changed.`,
-      );
-      return;
-    }
     const current = latest.current;
     if (current.id !== project.id) {
       setImportError("Import cancelled because you switched projects. Nothing was changed.");
       return;
     }
-    if ((current.manuscript ?? emptyManuscript()).text.trim()) {
-      setPendingImport(text);
+    const imported = manuscriptFromText(text);
+    if (hasWriting(current.manuscript ?? defaultManuscript(current))) {
+      setPendingImport(imported);
     } else {
-      onProjectChange(withManuscriptUpdate(current, { text }));
+      applyImport(imported);
     }
   };
 
   const confirmImport = () => {
-    if (pendingImport !== undefined) {
-      onProjectChange(withManuscriptUpdate(latest.current, { text: pendingImport }));
-    }
+    if (pendingImport) applyImport(pendingImport);
     setPendingImport(undefined);
   };
 
   return (
     <Panel title="Manuscript">
       <p className="manuscript-hint">
-        The one manuscript of {project.name}. Saved in this browser as you type.
+        The one manuscript of {project.name}, written in sections that read as
+        one document. Saved in this browser as you write.
       </p>
-      <div className="manuscript-fields">
-        <TextInput
-          label="Document title"
+      <div className="manuscript-doc">
+        <input
+          className="manuscript-title"
+          aria-label="Document title"
           maxLength={180}
           value={manuscript.title}
           placeholder={project.name}
@@ -95,20 +112,55 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
             )
           }
         />
-        <TextArea
-          label="Manuscript text"
-          rows={12}
-          maxLength={MANUSCRIPT_LIMIT}
-          placeholder="Start writing, paste a draft, or import a text file…"
-          value={manuscript.text}
-          onChange={(event) =>
-            onProjectChange(
-              withManuscriptUpdate(project, { text: event.currentTarget.value }),
-            )
-          }
-        />
+        {manuscript.sections.map((section, index) => (
+          <div key={section.id} className="manuscript-section">
+            <input
+              className="manuscript-heading"
+              aria-label={`Section ${index + 1} heading`}
+              maxLength={300}
+              value={section.heading}
+              placeholder={index === 0 ? "Heading (optional)" : "Section heading"}
+              onChange={(event) =>
+                onProjectChange(
+                  withSectionUpdate(project, section.id, {
+                    heading: event.currentTarget.value,
+                  }),
+                )
+              }
+            />
+            <textarea
+              className="manuscript-text"
+              aria-label={`Section ${index + 1} text`}
+              maxLength={SECTION_LIMIT}
+              rows={rowsFor(section.text)}
+              value={section.text}
+              placeholder={
+                index === 0 ? "Start writing, paste a draft, or import a text file…" : "Write this section…"
+              }
+              onChange={(event) =>
+                onProjectChange(
+                  withSectionUpdate(project, section.id, {
+                    text: event.currentTarget.value,
+                  }),
+                )
+              }
+            />
+            {!section.heading && !section.text && manuscript.sections.length > 1 && (
+              <Button
+                className="manuscript-remove"
+                aria-label={`Remove section ${index + 1}`}
+                onClick={() => onProjectChange(withSectionRemoved(project, section.id))}
+              >
+                Remove empty section
+              </Button>
+            )}
+          </div>
+        ))}
       </div>
       <div className="manuscript-actions">
+        <Button onClick={() => onProjectChange(withSectionAdded(project))}>
+          Add section
+        </Button>
         <Button onClick={download}>Export manuscript (.md)</Button>
         <Button onClick={() => fileInput.current?.click()}>Import .txt or .md</Button>
       </div>
@@ -132,9 +184,9 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
         title="Replace the manuscript text?"
       >
         <p>
-          Your manuscript contains writing. Importing replaces it with the
-          file&rsquo;s text. Export the manuscript first if you want to keep a
-          separate copy.
+          Your manuscript contains writing. Importing replaces its sections
+          with the file&rsquo;s text. Export the manuscript first if you want
+          to keep a separate copy.
         </p>
         <div className="manuscript-dialog-actions">
           <Button onClick={download}>Export current manuscript</Button>
