@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#153e32">
+<meta name="description" content="A focused home for your research. Discover papers, connect your findings, write your manuscript, and check every reference.">
+<title>Pherogent — Research Workspace</title>
+<link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="workspace.css"><link rel="stylesheet" href="tutorial.css"><link rel="stylesheet" href="agent.css"><link rel="stylesheet" href="studio.css"><link rel="stylesheet" href="map.css"><link rel="stylesheet" href="workflow.css"><link rel="stylesheet" href="meter.css"><link rel="stylesheet" href="research-tour.css"><link rel="stylesheet" href="evidence-inbox.css"><link rel="stylesheet" href="lee-study.css"><link rel="stylesheet" href="study-workflows.css"><link rel="stylesheet" href="project-outputs.css"><link rel="stylesheet" href="data-analysis.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to workspace</a>
+<header class="topbar">
+<button type="button" id="mobileMenuToggle" class="mobile-menu-toggle" data-studio-action="toggle-nav" aria-label="Open research navigation" aria-controls="navigation" aria-expanded="false">☰</button>
+<a class="brand" href="/" aria-label="Pherogent home"><span class="brand-symbol" aria-hidden="true">p</span><span>Pherogent<span class="brand-caption">Your research, connected</span></span></a>
+<div class="project-switcher-wrap"><span class="header-divider" aria-hidden="true"></span><button type="button" class="project-switcher" id="projectSwitcher" data-action="projects" aria-label="Switch project"><span class="project-folder" aria-hidden="true"><svg viewBox="0 0 20 20" width="19" height="19" fill="none"><path d="M2.5 5.5a1 1 0 0 1 1-1H8l1.5 2h7a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-10Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></span><span id="projectLabel">My research</span><svg class="switcher-chevron" viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true"><path d="m5 6 3 3 3-3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+<div class="top-actions"><span class="prototype-status">Prototype</span><button type="button" class="btn small primary manuscript-header-button" data-action="view" data-arg="manuscript">Open manuscript</button><button type="button" class="status-button usage-button" id="tokenCounter" data-action="ai-usage" aria-label="AI usage: 0 tokens. AI not connected"><span class="usage-value"><strong id="tokenTotal">0</strong> tokens</span><span class="usage-connection">AI not connected</span></button><button type="button" class="btn small ghost help-button" data-action="help" aria-label="Help"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="7.3" stroke="currentColor" stroke-width="1.4"/><path d="M8.2 7.4a1.9 1.9 0 0 1 3.7.6c0 1.5-1.9 1.6-1.9 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="13.4" r=".8" fill="currentColor"/></svg><span>Help</span></button><button type="button" class="btn small export-button" data-action="export-menu"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" aria-hidden="true"><path d="M10 3v9m-3-3 3 3 3-3M4 12v4h12v-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Export</button></div>
+</header>
+<button type="button" class="nav-backdrop" data-studio-action="close-nav" aria-label="Close research navigation" tabindex="-1"></button>
+<div class="app-layout">
+<aside class="sidebar">
+<button type="button" class="new-project-button" data-action="new-project"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>New project</button>
+<nav id="navigation" aria-label="Research workspace navigation"></nav>
+<div class="sidebar-bottom">
+<button type="button" class="sidebar-tutorial" data-action="process-tour"><span class="tutorial-launch-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none"><path d="m9 6 9 6-9 6V6Z" fill="currentColor"/><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.2" opacity=".45"/></svg></span><span><strong>Research walkthrough</strong><small>From question to paper</small></span><span aria-hidden="true">↗</span></button>
+<button type="button" class="sidebar-sample" data-action="open-sample"><svg viewBox="0 0 20 20" width="17" height="17" fill="none" aria-hidden="true"><path d="M4 3.5h9l3 3V17H4V3.5Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M12 4v4h4M7 11h6M7 14h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>Open sample project</button>
+<div class="sidebar-local"><span class="local-dot" aria-hidden="true"></span><span>Saved on this device<small>Export a copy to keep your work.</small></span></div>
+</div>
+</aside>
+<div class="app-content">
+<div id="workspaceMode" class="workspace-mode" aria-label="Workspace mode"></div>
+<div id="projectContext" class="project-context"></div>
+<main id="main" tabindex="-1"></main>
+<footer class="site-footer"><span id="saveStatus">Saved in this browser</span><span>Your drafts. Your decisions.</span></footer>
+</div>
+</div>
+<dialog id="dialog" aria-labelledby="dialogTitle"><div class="dialog-head"><h2 id="dialogTitle"></h2><button type="button" class="icon-button" id="closeDialog" aria-label="Close dialog">×</button></div><div id="dialogContent"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="agentDialog" class="agent-dialog" aria-labelledby="agentTitle"><div class="dialog-head"><div><span class="eyebrow">BOUNDED RESEARCH AGENT</span><h2 id="agentTitle">Investigate with evidence</h2></div><button type="button" class="icon-button" data-agent-action="close" aria-label="Close research agent">×</button></div><div id="agentBody"></div></dialog>
+<div id="tutorialRoot"></div>
+<script src="reference-data.js"></script><script src="cell-demo.js"></script><script src="literature.js"></script><script src="research-workspace.js"></script><script src="tutorial.js"></script><script type="module" src="study-design.js"></script><script src="agent.js"></script><script src="studio-data.js"></script><script src="attachments.js"></script><script src="attachment-ocr.js"></script><script src="studio.js"></script><script src="research-map.js"></script><script src="meter.js"></script><script src="research-tour.js"></script><script src="evidence-inbox.js"></script><script src="lee-analysis.js"></script><script src="lee-study.js"></script><script src="research-skills.js"></script><script src="data-analysis-engine.js"></script><script src="data-analysis.js"></script><script src="study-workflows.js"></script><script src="project-outputs.js"></script><script src="app.js"></script>
+</body>
+</html>

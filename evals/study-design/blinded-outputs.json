@@ -1,0 +1,14 @@
+[
+  {"id":"p01","label":"unsupported","reason":"The donor average moved toward baseline, but fresh aliquots were used and no individual fibroblast was followed."},
+  {"id":"p02","label":"supports","reason":"The bulk measurements show the stated change in the donor average after withdrawal."},
+  {"id":"p03","label":"supports","reason":"Imaging followed the same fibroblasts, and each cell's signal moved closer to its own baseline after withdrawal."},
+  {"id":"p04","label":"indeterminate","reason":"Repeat sampling identifies the donors, but the excerpt gives no way to tell whether the same cells were measured. Only an average increase is reported."},
+  {"id":"p05","label":"supports","reason":"The authors explicitly say they did not track individual cells and used a different aliquot for each bulk sample."},
+  {"id":"p06","label":"supports","reason":"The passage confirms that cells of the same type were present at both visits; the claim does not require them to be the same individuals."},
+  {"id":"p07","label":"unsupported","reason":"Different cells were sequenced at each time point. Similar subset frequencies do not show that individual cells regained their original expression state."},
+  {"id":"p08","label":"supports","reason":"For each donor, the bulk measurement at the specified locus was closer to baseline after withdrawal than during treatment."},
+  {"id":"p09","label":"indeterminate","reason":"Only the imaging experiment tracked individual cells, and the passage does not identify which experiment yielded the recovery result."},
+  {"id":"p10","label":"unsupported","reason":"Barcodes linked descendants to a clone. Recovery of the clone average does not establish recovery of the same individual cells."},
+  {"id":"p11","label":"supports","reason":"Time-lapse imaging followed each cell, and every tracked cell's signal returned to its own baseline."},
+  {"id":"p12","label":"supports","reason":"The bulk lysate comparison directly reports an increase in the final sample's mean reporter signal."}
+]

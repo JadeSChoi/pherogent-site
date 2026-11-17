@@ -1,0 +1,73 @@
+route,baseline,intermediate,endpoint,epsilon,class_id,class_label,count,eligible_regions,fraction,source_file,source_sheet,source_row_start,source_row_end
+continued_high,2°MEF,D8H,D16H,0.02,0,Near baseline at both phases,627,7890,0.079467680608365024,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.02,1,Delayed departure,1336,7890,0.16932826362484157,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.02,2,Return after departure,500,7890,0.063371356147021551,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.02,3,Partial reversal,660,7890,0.083650190114068435,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.02,4,Persistent or further departure,4511,7890,0.57173637515842834,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.02,5,Crossed baseline,256,7890,0.03244613434727503,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.050000000000000003,0,Near baseline at both phases,2213,7890,0.28048162230671736,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.050000000000000003,1,Delayed departure,1878,7890,0.23802281368821293,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.050000000000000003,2,Return after departure,356,7890,0.045120405576679339,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.050000000000000003,3,Partial reversal,299,7890,0.037896070975918884,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.050000000000000003,4,Persistent or further departure,3114,7890,0.39467680608365019,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.050000000000000003,5,Crossed baseline,30,7890,0.0038022813688212928,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.10000000000000001,0,Near baseline at both phases,4182,7890,0.53003802281368817,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.10000000000000001,1,Delayed departure,1842,7890,0.23346007604562738,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.10000000000000001,2,Return after departure,119,7890,0.015082382762991129,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.10000000000000001,3,Partial reversal,93,7890,0.011787072243346007,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.10000000000000001,4,Persistent or further departure,1653,7890,0.20950570342205324,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_high,2°MEF,D8H,D16H,0.10000000000000001,5,Crossed baseline,1,7890,0.00012674271229404308,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.02,0,Near baseline at both phases,514,7890,0.065145754119138144,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.02,1,Delayed departure,1449,7890,0.18365019011406844,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.02,2,Return after departure,437,7890,0.055386565272496829,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.02,3,Partial reversal,670,7890,0.084917617237008872,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.02,4,Persistent or further departure,4467,7890,0.56615969581749048,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.02,5,Crossed baseline,353,7890,0.044740177439797212,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.050000000000000003,0,Near baseline at both phases,1848,7890,0.23422053231939163,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.050000000000000003,1,Delayed departure,2243,7890,0.28428390367553863,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.050000000000000003,2,Return after departure,335,7890,0.042458808618504436,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.050000000000000003,3,Partial reversal,364,7890,0.046134347275031684,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.050000000000000003,4,Persistent or further departure,3042,7890,0.38555133079847909,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.050000000000000003,5,Crossed baseline,58,7890,0.0073510773130544991,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.10000000000000001,0,Near baseline at both phases,3523,7890,0.44651457541191381,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.10000000000000001,1,Delayed departure,2501,7890,0.31698352344740177,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.10000000000000001,2,Return after departure,151,7890,0.019138149556400506,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.10000000000000001,3,Partial reversal,165,7890,0.020912547528517109,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.10000000000000001,4,Persistent or further departure,1546,7890,0.19594423320659063,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D16L,0.10000000000000001,5,Crossed baseline,4,7890,0.00050697084917617234,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.02,0,Near baseline at both phases,162,7890,0.020532319391634982,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.02,1,Delayed departure,1801,7890,0.22826362484157162,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.02,2,Return after departure,392,7890,0.04968314321926489,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.02,3,Partial reversal,699,7890,0.088593155893536127,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.02,4,Persistent or further departure,3784,7890,0.47959442332065905,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.02,5,Crossed baseline,1052,7890,0.13333333333333333,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.050000000000000003,0,Near baseline at both phases,822,7890,0.10418250950570342,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.050000000000000003,1,Delayed departure,3269,7890,0.41432192648922689,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.050000000000000003,2,Return after departure,524,7890,0.066413181242078581,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.050000000000000003,3,Partial reversal,467,7890,0.059188846641318127,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.050000000000000003,4,Persistent or further departure,2467,7890,0.31267427122940433,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.050000000000000003,5,Crossed baseline,341,7890,0.043219264892268697,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.10000000000000001,0,Near baseline at both phases,2261,7890,0.28656527249683145,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.10000000000000001,1,Delayed departure,3763,7890,0.47693282636248413,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.10000000000000001,2,Return after departure,384,7890,0.048669201520912544,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.10000000000000001,3,Partial reversal,261,7890,0.033079847908745248,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.10000000000000001,4,Persistent or further departure,1155,7890,0.14638783269961977,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D8H,D21L,0.10000000000000001,5,Crossed baseline,66,7890,0.0083650190114068438,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.02,0,Near baseline at both phases,152,7890,0.019264892268694551,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.02,1,Delayed departure,1811,7890,0.22953105196451204,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.02,2,Return after departure,408,7890,0.051711026615969581,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.02,3,Partial reversal,738,7890,0.093536121673003805,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.02,4,Persistent or further departure,3242,7890,0.41089987325728772,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.02,5,Crossed baseline,1539,7890,0.19505703422053233,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.050000000000000003,0,Near baseline at both phases,768,7890,0.097338403041825089,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.050000000000000003,1,Delayed departure,3323,7890,0.42116603295310517,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.050000000000000003,2,Return after departure,665,7890,0.08428390367553866,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.050000000000000003,3,Partial reversal,464,7890,0.058808618504435993,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.050000000000000003,4,Persistent or further departure,2001,7890,0.25361216730038022,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.050000000000000003,5,Crossed baseline,669,7890,0.084790874524714829,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.10000000000000001,0,Near baseline at both phases,2185,7890,0.27693282636248417,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.10000000000000001,1,Delayed departure,3839,7890,0.48656527249683146,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.10000000000000001,2,Return after departure,617,7890,0.078200253485424587,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.10000000000000001,3,Partial reversal,189,7890,0.023954372623574145,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.10000000000000001,4,Persistent or further departure,896,7890,0.11356147021546262,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D8H,D21Ø,0.10000000000000001,5,Crossed baseline,164,7890,0.020785804816223066,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893

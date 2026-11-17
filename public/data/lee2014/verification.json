@@ -1,0 +1,486 @@
+{
+  "all_calculation_checks_passed": true,
+  "all_checks_passed": false,
+  "all_report_values_match": false,
+  "classifier_function_sha256": "3417884f3d3ffb6b4d1810426c6f9cdd2b34bb0520a6e2e923bd0def431103a2",
+  "classifier_source_commit": "d8fbd308ae8724c960dc39fbbb5194a198f6192f",
+  "comparison_basis": "Public workbook values and displayed claims in supplied Lee report; new output formats",
+  "csv_row_counts": {
+    "examples.csv": 3,
+    "group_differences.csv": 5,
+    "increments.csv": 22,
+    "path_classes.csv": 72,
+    "return_schedules.csv": 6,
+    "same_day_comparisons.csv": 2
+  },
+  "doi": "10.1038/ncomms6619",
+  "independent_class_totals_checked": 72,
+  "independent_increment_arrays_checked": 22,
+  "input_sha256": {
+    "routes.json": "3dbe47bc789f9cc15d72f13fdef3a9ce2ba1fa5f8ef459ac72b833d218d67e19",
+    "tensor/dmr_states.npz": "aaa7c3192d51acf27e7ebc5c54f20110493c81299b36392ffc8d18008ce435c5"
+  },
+  "interpretation": "Descriptive regional bulk measurements; no mechanism, same-cell recovery or rejuvenation inference",
+  "observation_structure": {
+    "day_labels": 9,
+    "distinct_source_profiles_on_routes": 11,
+    "independent_biological_units": null,
+    "independent_unit_reason": "Independent replicate count is not established by the aggregated workbook profiles or shared route encodings",
+    "occupied_route_day_slots": 26,
+    "route_count": 4,
+    "route_day_grid_slots": 36,
+    "source_profiles": 13
+  },
+  "original_archive_byte_identity_available": false,
+  "output_sha256": {
+    "examples.csv": "082c6ed8ea08c32d19ec0b8b06308ba9e0f312f42fa3e05126ffe5edcac562e0",
+    "group_differences.csv": "7b97996951192fc8a80d71b748c00ae04c4ca7d07d5ac453ff9d9bbd75fdea63",
+    "increments.csv": "a7281cea9635999620eafb52635e8c104075af968184cf6059e021f93b9944ba",
+    "path_classes.csv": "0c64a929504a849583487f36b9b520f642d5383ace9a1ff44fc7478eaec35e41",
+    "return_schedules.csv": "5643c451c37ac8cb35800fe460113f20378ef1889e2a8c30d81b57f918a82357",
+    "same_day_comparisons.csv": "eeacad03433ef227c86b7ed35cefd257511c5eb46e9cd341a4b3922d59f7799f"
+  },
+  "reconstruction": true,
+  "report_checks": [
+    {
+      "actual": 22,
+      "expected": 22,
+      "name": "route_increment_count",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 3.0800834553380283,
+      "expected": 3.08,
+      "name": "day_16_mean_difference_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 4.557054085722688,
+      "expected": 4.56,
+      "name": "day_16_mean_absolute_difference_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 6.121399686050925,
+      "expected": 6.12,
+      "name": "day_16_rms_difference_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 2766,
+      "expected": 2766,
+      "name": "day_16_absolute_count",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 35.05703422053232,
+      "expected": 35.06,
+      "name": "day_16_absolute_percent",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": -1.1404849998917288,
+      "expected": -1.14,
+      "name": "day_21_mean_difference_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 8.658728637744256,
+      "expected": 8.66,
+      "name": "day_21_mean_absolute_difference_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 10.848321089358448,
+      "expected": 10.85,
+      "name": "day_21_rms_difference_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 5033,
+      "expected": 5033,
+      "name": "day_21_absolute_count",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 63.78960709759189,
+      "expected": 63.79,
+      "name": "day_21_absolute_percent",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 2224,
+      "expected": 2224,
+      "name": "day_21_higher_regions",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 2809,
+      "expected": 2809,
+      "name": "day_21_lower_regions",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 500,
+      "expected": 500,
+      "name": "table4_D16H_epsilon_0.02",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 356,
+      "expected": 356,
+      "name": "table4_D16H_epsilon_0.05",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 119,
+      "expected": 119,
+      "name": "table4_D16H_epsilon_0.1",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 437,
+      "expected": 437,
+      "name": "table4_D16L_epsilon_0.02",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 335,
+      "expected": 335,
+      "name": "table4_D16L_epsilon_0.05",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 151,
+      "expected": 151,
+      "name": "table4_D16L_epsilon_0.1",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 392,
+      "expected": 392,
+      "name": "table4_D21L_epsilon_0.02",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 524,
+      "expected": 524,
+      "name": "table4_D21L_epsilon_0.05",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 384,
+      "expected": 384,
+      "name": "table4_D21L_epsilon_0.1",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 408,
+      "expected": 408,
+      "name": "table4_D21Ø_epsilon_0.02",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 665,
+      "expected": 665,
+      "name": "table4_D21Ø_epsilon_0.05",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 617,
+      "expected": 617,
+      "name": "table4_D21Ø_epsilon_0.1",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 524,
+      "expected": 524,
+      "name": "schedule_D21L_day8",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 737,
+      "expected": 737,
+      "name": "schedule_D21L_common",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 927,
+      "expected": 927,
+      "name": "schedule_D21L_all_available",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 665,
+      "expected": 665,
+      "name": "schedule_D21Ø_day8",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 831,
+      "expected": 831,
+      "name": "schedule_D21Ø_common",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 831,
+      "expected": 831,
+      "name": "schedule_D21Ø_all_available",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 3799,
+      "expected": 3799,
+      "name": "day8_departed_regions",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 1346,
+      "expected": 1346,
+      "name": "D21L_endpoint_near",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 822,
+      "expected": 822,
+      "name": "D21L_near_both",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 38.93016344725111,
+      "expected": 38.93,
+      "name": "D21L_return_share_endpoint_near",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 6.641318124207858,
+      "expected": 6.64,
+      "name": "D21L_return_percent_all",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 1433,
+      "expected": 1433,
+      "name": "D21Ø_endpoint_near",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 768,
+      "expected": 768,
+      "name": "D21Ø_near_both",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 46.40614096301466,
+      "expected": 46.41,
+      "name": "D21Ø_return_share_endpoint_near",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 8.428390367553865,
+      "expected": 8.43,
+      "name": "D21Ø_return_percent_all",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 1819,
+      "expected": 1819,
+      "name": "DMR_1a_regions",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 8.479925905504976,
+      "expected": 8.48,
+      "name": "DMR_1a_mean_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 553,
+      "expected": 553,
+      "name": "DMR_2a_regions",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 8.005968422153273,
+      "expected": 8.01,
+      "name": "DMR_2a_mean_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 1291,
+      "expected": 1291,
+      "name": "DMR_2b_regions",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": -12.877277321749705,
+      "expected": -12.88,
+      "name": "DMR_2b_mean_pp",
+      "passed": true,
+      "round_to_decimal_places": 2
+    },
+    {
+      "actual": 84,
+      "expected": 84,
+      "name": "DMR_81_source_row",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 0.14817574753900004,
+      "expected": 0.14818,
+      "name": "DMR_81_day8_minus_baseline",
+      "passed": true,
+      "round_to_decimal_places": 5
+    },
+    {
+      "actual": 0.166138792074,
+      "expected": 0.16614,
+      "name": "DMR_81_low_minus_baseline",
+      "passed": true,
+      "round_to_decimal_places": 5
+    },
+    {
+      "actual": 0.040092251769,
+      "expected": 0.04009,
+      "name": "DMR_81_withdrawal_minus_baseline",
+      "passed": true,
+      "round_to_decimal_places": 5
+    },
+    {
+      "actual": "DMR_81",
+      "expected": "DMR_81",
+      "name": "first_large_departure_withdrawal_example",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 0.697168569369,
+      "expected": 0.6972,
+      "name": "DMR_6651_continued_low",
+      "passed": true,
+      "round_to_decimal_places": 4
+    },
+    {
+      "actual": 0.697611916857,
+      "expected": 0.6976,
+      "name": "DMR_6651_withdrawal",
+      "passed": true,
+      "round_to_decimal_places": 4
+    },
+    {
+      "actual": 0.0004433474880000121,
+      "expected": 0.0004,
+      "name": "DMR_6651_withdrawal_minus_low",
+      "passed": true,
+      "round_to_decimal_places": 4
+    },
+    {
+      "actual": 0.718563087299,
+      "expected": 0.7186,
+      "name": "DMR_6652_continued_low",
+      "passed": true,
+      "round_to_decimal_places": 4
+    },
+    {
+      "actual": 0.774840457022,
+      "expected": 0.7748,
+      "name": "DMR_6652_withdrawal",
+      "passed": true,
+      "round_to_decimal_places": 4
+    },
+    {
+      "actual": 0.056277369723000015,
+      "expected": 0.0562,
+      "name": "DMR_6652_withdrawal_minus_low",
+      "passed": false,
+      "round_to_decimal_places": 4
+    },
+    {
+      "actual": 26,
+      "expected": 26,
+      "name": "observed_route_day_slots",
+      "passed": true,
+      "round_to_decimal_places": null
+    },
+    {
+      "actual": 9,
+      "expected": 9,
+      "name": "day_label_count",
+      "passed": true,
+      "round_to_decimal_places": null
+    }
+  ],
+  "report_discrepancies": [
+    {
+      "actual": 0.056277369723000015,
+      "expected": 0.0562,
+      "explanation": "The report subtracts rounded endpoints (0.7748 - 0.7186 = 0.0562). The original unrounded source difference rounds to 0.0563 at four decimal places. Source values and report are unchanged.",
+      "name": "DMR_6652_withdrawal_minus_low",
+      "passed": false,
+      "round_to_decimal_places": 4
+    }
+  ],
+  "schema_version": "1.0",
+  "source_sha256": {
+    "sources/article.html": "1454d7aaa8268f012ec03ed9e1b90979890c93f68f3d426ef40cbc9ae60b1add",
+    "sources/ena_runs.tsv": "cd6bd501d78e72831996d61fc555ebb398e6da0d313b452e16013fe4daa70bce",
+    "sources/ncomms6619-s1.pdf": "64417f33d3b50fc2bbbdfca06db3045007133db6b7759598e662768286c99f60",
+    "sources/ncomms6619-s2.xlsx": "281ba51e4fdd9ff38a9c1f7c618e2be11f176926adf6224b8b00cb35e61e9aa7",
+    "sources/ncomms6619-s3.xlsx": "51e06bd02b7d73902d780f3721ea5b11222444e7b52cc42ad92766dbeee3f639",
+    "sources/ncomms6619-s4.xlsx": "914e2ed00ac566c7b063eb57a43bad9842a1f55686a42d07f9a0220148e13eb7",
+    "sources/ncomms6619-s5.xlsx": "ec63f2fe97dbe8e9c62f35d6046b5fbd97b37495a846886127fb2911eea318b7",
+    "sources/ncomms6619-s6.xlsx": "12416207e081c99113462b12a7d8a921bd919a89412d43c2564fd344cf5a7f2c",
+    "sources/provenance.json": "328f143b7e0f222207cff527ac8276d526fdb8e3eba2ab906ab08776875b5e70"
+  },
+  "workbook_cell_comparison": {
+    "exactly_equal": true,
+    "feature_locators_checked": 7890,
+    "values_checked": 102570
+  }
+}

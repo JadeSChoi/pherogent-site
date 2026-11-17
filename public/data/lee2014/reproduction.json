@@ -1,0 +1,60 @@
+{
+  "reconstruction_outputs_byte_identical": true,
+  "original_archive_available": false,
+  "comparison": "fresh regeneration versus this newly reconstructed package only",
+  "files": [
+    {
+      "file": "increments.csv",
+      "byte_identical": true,
+      "archived_sha256": "a7281cea9635999620eafb52635e8c104075af968184cf6059e021f93b9944ba",
+      "regenerated_sha256": "a7281cea9635999620eafb52635e8c104075af968184cf6059e021f93b9944ba"
+    },
+    {
+      "file": "same_day_comparisons.csv",
+      "byte_identical": true,
+      "archived_sha256": "eeacad03433ef227c86b7ed35cefd257511c5eb46e9cd341a4b3922d59f7799f",
+      "regenerated_sha256": "eeacad03433ef227c86b7ed35cefd257511c5eb46e9cd341a4b3922d59f7799f"
+    },
+    {
+      "file": "path_classes.csv",
+      "byte_identical": true,
+      "archived_sha256": "0c64a929504a849583487f36b9b520f642d5383ace9a1ff44fc7478eaec35e41",
+      "regenerated_sha256": "0c64a929504a849583487f36b9b520f642d5383ace9a1ff44fc7478eaec35e41"
+    },
+    {
+      "file": "return_schedules.csv",
+      "byte_identical": true,
+      "archived_sha256": "5643c451c37ac8cb35800fe460113f20378ef1889e2a8c30d81b57f918a82357",
+      "regenerated_sha256": "5643c451c37ac8cb35800fe460113f20378ef1889e2a8c30d81b57f918a82357"
+    },
+    {
+      "file": "group_differences.csv",
+      "byte_identical": true,
+      "archived_sha256": "7b97996951192fc8a80d71b748c00ae04c4ca7d07d5ac453ff9d9bbd75fdea63",
+      "regenerated_sha256": "7b97996951192fc8a80d71b748c00ae04c4ca7d07d5ac453ff9d9bbd75fdea63"
+    },
+    {
+      "file": "examples.csv",
+      "byte_identical": true,
+      "archived_sha256": "082c6ed8ea08c32d19ec0b8b06308ba9e0f312f42fa3e05126ffe5edcac562e0",
+      "regenerated_sha256": "082c6ed8ea08c32d19ec0b8b06308ba9e0f312f42fa3e05126ffe5edcac562e0"
+    },
+    {
+      "file": "verification.json",
+      "byte_identical": true,
+      "archived_sha256": "13c0afe4854b4b8246cd2954745cf93f4926752ae73c3562ecfabd04e6062ece",
+      "regenerated_sha256": "13c0afe4854b4b8246cd2954745cf93f4926752ae73c3562ecfabd04e6062ece"
+    }
+  ],
+  "all_report_values_match": false,
+  "report_discrepancies": [
+    {
+      "actual": 0.056277369723000015,
+      "expected": 0.0562,
+      "explanation": "The report subtracts rounded endpoints (0.7748 - 0.7186 = 0.0562). The original unrounded source difference rounds to 0.0563 at four decimal places. Source values and report are unchanged.",
+      "name": "DMR_6652_withdrawal_minus_low",
+      "passed": false,
+      "round_to_decimal_places": 4
+    }
+  ]
+}

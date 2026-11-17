@@ -1,0 +1,14 @@
+{
+  "p01":{"design":"incompatible","endpoint":"unsupported"},
+  "p02":{"design":"not_applicable","endpoint":"answerable"},
+  "p03":{"design":"compatible","endpoint":"answerable"},
+  "p04":{"design":"unknown","endpoint":"unsupported"},
+  "p05":{"design":"not_applicable","endpoint":"answerable"},
+  "p06":{"design":"not_applicable","endpoint":"answerable"},
+  "p07":{"design":"incompatible","endpoint":"unsupported"},
+  "p08":{"design":"not_applicable","endpoint":"answerable"},
+  "p09":{"design":"unknown","endpoint":"unsupported"},
+  "p10":{"design":"unknown","endpoint":"unsupported"},
+  "p11":{"design":"compatible","endpoint":"answerable"},
+  "p12":{"design":"not_applicable","endpoint":"answerable"}
+}

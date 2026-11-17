@@ -1,0 +1,102 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const root = path.join(__dirname,'..');
+const dataset = JSON.parse(fs.readFileSync(path.join(root,'public/data/lee2014/data.json'),'utf8'));
+function harness(options={}) {
+  const elements = new Map(), handlers = {}, requests = [];
+  const el = (id, extra={}) => {const next={id,innerHTML:'',textContent:'',value:'',hidden:false,...extra};elements.set(id,next);return next;};
+  for (const id of ['leeStudy','leeStudyBody','leeResults','leeRegionResult','leeRegionError','leeRegion']) el(id);
+  el('leeEpsilon',{value:'0.05'});el('leeSchedule',{value:'common'});
+  const sandbox = {window:{},URL,console,document:{getElementById:id=>elements.get(id)||null,addEventListener:(type,fn)=>{(handlers[type]||=[]).push(fn);}},fetch:async(url,init)=>{requests.push({url,init});if(options.fetch)return options.fetch(url,init);return {ok:true,json:async()=>structuredClone(dataset)};}};
+  vm.createContext(sandbox);
+  for (const file of ['lee-analysis.js','lee-study.js']) vm.runInContext(fs.readFileSync(path.join(root,'public',file),'utf8'),sandbox);
+  return {study:sandbox.window.PherogentLeeStudy,requests,elements,el,get:id=>elements.get(id),dispatch:(type,target)=>Promise.all((handlers[type]||[]).map(fn=>fn({target,preventDefault(){}}))),clickRegion:id=>{const target={dataset:{leeRegion:id},closest:selector=>selector==='[data-lee-region]'?target:null};return Promise.all((handlers.click||[]).map(fn=>fn({target})));}};
+}
+test('study data loads only when opened, caches locally and never calls an AI endpoint',async()=>{
+  const h=harness();
+  assert.equal(h.requests.length,0);
+  assert.match(h.study.render(),/Opening the public study data/);
+  assert.equal(h.requests.length,0);
+  await h.study.afterRender();
+  assert.equal(h.requests.length,1);
+  assert.equal(h.requests[0].url,'/data/lee2014/data.json');
+  assert.match(h.get('leeStudyBody').innerHTML,/737/);
+  assert.match(h.get('leeStudyBody').innerHTML,/831/);
+  assert.match(h.study.render(),/0 AI calls · 0 tokens/);
+  await h.study.afterRender();
+  assert.equal(h.requests.length,1);
+  assert.ok(h.requests.every(r=>!r.url.startsWith('/api/')));
+});
+test('schedule changes recompute counts, flag unmatched visits and preserve controls',async()=>{
+  const h=harness();await h.study.afterRender();
+  const input=h.get('leeSchedule');
+  input.value='day8';await h.dispatch('change',input);
+  assert.match(h.get('leeResults').innerHTML,/<strong>524<\/strong>/);
+  assert.match(h.get('leeResults').innerHTML,/<strong>665<\/strong>/);
+  input.value='all_available';await h.dispatch('change',input);
+  assert.match(h.get('leeResults').innerHTML,/<strong>927<\/strong>/);
+  assert.match(h.get('leeResults').innerHTML,/<strong>831<\/strong>/);
+  assert.match(h.get('leeResults').innerHTML,/Unequal sampling opportunity/);
+  assert.match(h.get('leeResults').innerHTML,/no day-16 measurement/);
+  assert.equal(h.get('leeSchedule'),input);
+  h.get('leeEpsilon').value='0.1';input.value='day8';await h.dispatch('change',h.get('leeEpsilon'));
+  assert.match(h.get('leeResults').innerHTML,/<strong>384<\/strong>/);
+  assert.match(h.get('leeResults').innerHTML,/<strong>617<\/strong>/);
+  assert.equal(h.requests.length,1);
+});
+test('region inspector preserves source precision and rejects an unknown region',async()=>{
+  const h=harness();await h.study.afterRender();await h.clickRegion('DMR_1');
+  assert.match(h.get('leeRegionResult').innerHTML,/0\.0176399887095/);
+  assert.match(h.get('leeRegionResult').innerHTML,/<code>H4<\/code>/);
+  await h.clickRegion('DMR_6652');
+  assert.match(h.get('leeRegionResult').innerHTML,/0\.056277369723000015/);
+  assert.match(h.get('leeRegionResult').innerHTML,/row 6655/);
+  const previous=h.get('leeRegionResult').innerHTML;
+  h.get('leeRegion').value='DMR_999999';await h.dispatch('submit',{id:'leeRegionForm'});
+  assert.equal(h.get('leeRegionError').hidden,false);
+  assert.ok(h.get('leeRegionError').textContent);
+  assert.equal(h.get('leeRegionResult').innerHTML,previous,'The previous clearly labelled region stays intact; no invented source is shown.');
+});
+test('view change during the download does not replace another screen',async()=>{
+  let release;const h=harness({fetch:()=>new Promise(resolve=>{release=resolve;})});
+  const old=h.get('leeStudyBody'),waiting=h.study.afterRender();
+  h.elements.delete('leeStudyBody');h.elements.delete('leeStudy');
+  release({ok:true,json:async()=>structuredClone(dataset)});await waiting;
+  assert.equal(old.innerHTML,'');
+  assert.equal(h.requests.length,1);
+});
+test('failed downloads show an explicit error and support author-triggered retry',async()=>{
+  let attempts=0;const h=harness({fetch:async()=>++attempts===1?{ok:false}:{ok:true,json:async()=>structuredClone(dataset)}});
+  await h.study.afterRender();
+  assert.match(h.get('leeStudyBody').innerHTML,/Study data could not be opened/);
+  assert.match(h.get('leeStudyBody').innerHTML,/Try again/);
+  assert.equal(attempts,1);
+  await h.study.afterRender();
+  assert.match(h.get('leeStudyBody').innerHTML,/Numerical reconstruction/);
+  assert.equal(attempts,2);
+});
+test('source facts, discrepancy and downloaded outputs remain distinct',async()=>{
+  const h=harness();await h.study.afterRender();const html=h.study.render();
+  assert.match(html,/26 <small>\/ 36/);
+  assert.match(html,/Independent replicate count/);
+  assert.match(html,/0\.0563/);assert.match(html,/0\.0562/);
+  assert.match(html,/missing original analysis ZIP was unavailable/);
+  assert.match(html,/58 of 59 report values matched/);
+  assert.match(html,/changing the controls above does not rewrite them/);
+  assert.equal((html.match(/download="lee2014-/g)||[]).length,8);
+  assert.match(html,/Download the regeneration check/);
+  assert.match(html,/https:\/\/creativecommons.org\/licenses\/by\/4.0\//);
+  for (const match of html.matchAll(/href="(\/data\/lee2014\/[^\"]+)"/g)) assert.ok(fs.existsSync(path.join(root,'public',match[1])));
+  assert.match(html,/does not mean an exact return/);
+});
+test('missing provenance fails before showing a study result',async()=>{
+  const broken=structuredClone(dataset);delete broken.metadata;
+  const h=harness({fetch:async()=>({ok:true,json:async()=>broken})});
+  await h.study.afterRender();
+  assert.match(h.get('leeStudyBody').innerHTML,/source links are incomplete/);
+  assert.doesNotMatch(h.get('leeStudyBody').innerHTML,/Recomputed in this browser/);
+});

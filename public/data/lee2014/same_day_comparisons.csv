@@ -1,0 +1,3 @@
+day,first_sample,second_sample,direction,eligible_regions,mean_difference,mean_absolute_difference,rms_difference,above_0_05,below_minus_0_05,absolute_above_0_05,source_file,source_sheet,source_row_start,source_row_end
+16,D16H,D16L,second_minus_first,7890,0.030800834553380282,0.045570540857226886,0.061213996860509247,2410,356,2766,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+21,D21L,D21Ø,second_minus_first,7890,-0.011404849998917287,0.086587286377442563,0.10848321089358448,2224,2809,5033,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893

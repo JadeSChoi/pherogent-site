@@ -1,0 +1,7 @@
+route,baseline,endpoint,schedule,intermediates,epsilon,return_count,eligible_regions,return_fraction,endpoint_near_count,source_file,source_sheet,source_row_start,source_row_end
+continued_low,2°MEF,D21L,day8,D8H,0.050000000000000003,524,7890,0.066413181242078581,1346,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D21L,common,D2H;D5H;D8H,0.050000000000000003,737,7890,0.093409378960709763,1346,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+continued_low,2°MEF,D21L,all_available,D2H;D5H;D8H;D16L,0.050000000000000003,927,7890,0.11749049429657794,1346,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D21Ø,day8,D8H,0.050000000000000003,665,7890,0.08428390367553866,1433,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D21Ø,common,D2H;D5H;D8H,0.050000000000000003,831,7890,0.10532319391634981,1433,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893
+low_withdrawal,2°MEF,D21Ø,all_available,D2H;D5H;D8H,0.050000000000000003,831,7890,0.10532319391634981,1433,sources/ncomms6619-s3.xlsx,Suppl_Data2,4,7893

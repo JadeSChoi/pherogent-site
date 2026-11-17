@@ -1,0 +1,4 @@
+[
+  {"id":"p01","label":"supports","reason":"Synthetic erroneous endorsement to demonstrate how the scorer counts an intervention."},
+  {"id":"p02","label":"supports","reason":"Synthetic valid group-level answer. The remaining ten rows deliberately illustrate missing-result handling."}
+]

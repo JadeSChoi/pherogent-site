@@ -1,0 +1,14 @@
+import {createRequire} from 'node:module';
+import {copyFileSync, cpSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
+import {dirname, join} from 'node:path';
+const require=createRequire(import.meta.url),out=new URL('../public/vendor/',import.meta.url);
+mkdirSync(out,{recursive:true});
+const pdf=dirname(require.resolve('pdfjs-dist/package.json'));
+const zip=dirname(dirname(require.resolve('fflate')));
+for(const file of ['pdf.min.mjs','pdf.worker.min.mjs'])copyFileSync(join(pdf,'legacy/build',file),new URL(file,out));
+for(const directory of ['cmaps','standard_fonts'])cpSync(join(pdf,directory),new URL(directory,out),{recursive:true});
+copyFileSync(join(pdf,'LICENSE'),new URL('pdfjs-LICENSE',out));
+copyFileSync(join(zip,'esm/browser.js'),new URL('fflate.mjs',out));
+copyFileSync(join(zip,'LICENSE'),new URL('fflate-LICENSE',out));
+writeFileSync(new URL('README.md',out),'# Attachment reader dependencies\n\nLocally served, unmodified distributions. No file content is sent to a CDN.\n\n- Mozilla PDF.js '+JSON.parse(readFileSync(join(pdf,'package.json'))).version+' (Apache-2.0), legacy minified module and worker, CMaps and standard fonts. https://mozilla.github.io/pdf.js/\n- fflate '+JSON.parse(readFileSync(join(zip,'package.json'))).version+' (MIT), browser ESM. https://github.com/101arrowz/fflate\n\nReproduce with `node scripts/vendor-attachments.mjs` after installing the pinned dependencies.\n');
+console.log('Vendored pinned attachment reader libraries.');
