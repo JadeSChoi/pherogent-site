@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Panel } from "./ui";
 
 type Status = {
   ok: boolean;
@@ -23,19 +24,20 @@ export function App() {
   }, []);
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", margin: "4rem auto", maxWidth: "40rem", padding: "0 1rem" }}>
+    <main style={{ margin: "var(--space-7) auto", maxWidth: "40rem", padding: "0 var(--space-4)" }}>
       <h1>Pherogent</h1>
       <p>Evidence-first workspace for bio researchers. Rebuild in progress.</p>
-      <h2>API status</h2>
-      {error ? (
-        <p role="alert">Status check failed: {error}</p>
-      ) : status ? (
-        <p>
-          {status.service} is {status.ok ? "up" : "down"} · schema {status.schemaVersion}
-        </p>
-      ) : (
-        <p>Checking…</p>
-      )}
+      <Panel title="API status">
+        {error ? (
+          <p role="alert">Status check failed: {error}</p>
+        ) : status ? (
+          <p>
+            {status.service} is {status.ok ? "up" : "down"}, schema {status.schemaVersion}
+          </p>
+        ) : (
+          <p>Checking…</p>
+        )}
+      </Panel>
     </main>
   );
 }
