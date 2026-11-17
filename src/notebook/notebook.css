@@ -1,0 +1,24 @@
+/* The Notebook is a writing surface with sans field chrome (Folio): the
+   fields themselves come from src/ui, hints and statuses stay quiet. */
+
+.notebook-hint {
+  margin: 0 0 var(--space-4);
+  color: var(--color-ink-soft);
+}
+
+.notebook-fields {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 40rem;
+}
+
+.notebook-actions {
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+.notebook-append-message {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+}

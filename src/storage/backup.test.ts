@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { exportBackup, importBackup } from "./backup";
-import { createProject, createWorkspace, withSavedSource, withSourceUpdate } from "./workspace";
+import { createProject, createWorkspace, withManuscriptUpdate, withNotebookUpdate, withSavedSource, withSourceUpdate } from "./workspace";
 import v2MultiProject from "./fixtures/v2-multi-project.json";
 import v2WithRecovery from "./fixtures/v2-with-recovery.json";
 
@@ -198,5 +198,42 @@ describe("imported source links", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.workspace.projects[0].sources?.[0].paper.url).toBe("");
+  });
+});
+
+describe("notebook and manuscript in backups", () => {
+  it("round-trips the notebook and manuscript through export and import", () => {
+    const workspace = createWorkspace();
+    workspace.projects[0] = withNotebookUpdate(workspace.projects[0], {
+      findings: "OSK restores vision in mice.",
+      nextExperiment: "Test in aged primates.",
+    });
+    workspace.projects[0] = withManuscriptUpdate(workspace.projects[0], {
+      title: "Reprogramming draft",
+      text: "First paragraph.",
+    });
+
+    const result = importBackup(exportBackup(workspace));
+
+    expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("restores a damaged notebook to safe empty fields instead of rejecting", () => {
+    const workspace = createWorkspace();
+    workspace.projects[0] = withNotebookUpdate(workspace.projects[0], {
+      findings: "Keep me.",
+    });
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].notebook.limitations = 42;
+    raw.projects[0].manuscript = "not an object";
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const project = result.workspace.projects[0];
+    expect(project.notebook?.findings).toBe("Keep me.");
+    expect(project.notebook?.limitations).toBe("");
+    expect(project.manuscript).toBeUndefined();
   });
 });

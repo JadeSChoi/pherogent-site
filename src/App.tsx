@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Library } from "./library/Library";
+import { ManuscriptPanel } from "./manuscript/ManuscriptPanel";
+import { NotebookPanel } from "./notebook/NotebookPanel";
 import { Panel } from "./ui";
 import { WorkspaceControls } from "./workspace/WorkspaceControls";
 import { useWorkspace } from "./workspace/useWorkspace";
@@ -39,6 +41,8 @@ export function App() {
         onCommit={commit}
       />
       <Library project={activeProject} onProjectChange={commitProject} />
+      <NotebookPanel project={activeProject} onProjectChange={commitProject} />
+      <ManuscriptPanel project={activeProject} onProjectChange={commitProject} />
       <Panel title="API status">
         {error ? (
           <p role="alert">Status check failed: {error}</p>

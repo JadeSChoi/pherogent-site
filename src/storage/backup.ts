@@ -1,5 +1,13 @@
 import type { Paper } from "../library/europePmc";
-import { READING_STATUSES, type Project, type ReadingStatus, type SavedSource, type Workspace } from "./workspace";
+import {
+  READING_STATUSES,
+  type Manuscript,
+  type Notebook,
+  type Project,
+  type ReadingStatus,
+  type SavedSource,
+  type Workspace,
+} from "./workspace";
 
 export type ImportResult =
   | { ok: true; workspace: Workspace }
@@ -61,6 +69,22 @@ function parseSavedSource(x: unknown): SavedSource | null {
   };
 }
 
+/** Unreadable fields fall back to empty strings; prose must survive import. */
+function parseNotebook(x: unknown): Notebook | null {
+  if (!isRecord(x)) return null;
+  return {
+    findings: str(x.findings),
+    limitations: str(x.limitations),
+    hypothesis: str(x.hypothesis),
+    nextExperiment: str(x.nextExperiment),
+  };
+}
+
+function parseManuscript(x: unknown): Manuscript | null {
+  if (!isRecord(x)) return null;
+  return { title: str(x.title), text: str(x.text) };
+}
+
 function parseProject(x: unknown): Project | null {
   if (!isRecord(x)) return null;
   const { id, name, question, createdAt } = x;
@@ -79,6 +103,10 @@ function parseProject(x: unknown): Project | null {
       .map(parseSavedSource)
       .filter((source): source is SavedSource => source !== null);
   }
+  const notebook = parseNotebook(x.notebook);
+  if (notebook) project.notebook = notebook;
+  const manuscript = parseManuscript(x.manuscript);
+  if (manuscript) project.manuscript = manuscript;
   if ("legacy" in x) project.legacy = x.legacy;
   return project;
 }
