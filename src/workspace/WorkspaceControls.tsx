@@ -1,29 +1,27 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Button, Dialog, Panel, Select, TextArea, TextInput } from "../ui";
 import { exportBackup, importBackup } from "../storage/backup";
-import { loadWorkspace, saveWorkspace } from "../storage/local";
-import { createProject, type Workspace } from "../storage/workspace";
+import { createProject, type Project, type Workspace } from "../storage/workspace";
 import "./workspace.css";
 
-export function WorkspaceControls() {
-  const [workspace, setWorkspace] = useState<Workspace>(() =>
-    loadWorkspace(localStorage),
-  );
-  const [saved, setSaved] = useState(true);
+type WorkspaceControlsProps = {
+  workspace: Workspace;
+  activeProject: Project;
+  saved: boolean;
+  onCommit: (next: Workspace) => void;
+};
+
+export function WorkspaceControls({
+  workspace,
+  activeProject: active,
+  saved,
+  onCommit: commitWorkspace,
+}: WorkspaceControlsProps) {
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [nameError, setNameError] = useState<string>();
   const [importError, setImportError] = useState<string>();
   const [pendingImport, setPendingImport] = useState<Workspace>();
   const fileInput = useRef<HTMLInputElement>(null);
-
-  const active =
-    workspace.projects.find((p) => p.id === workspace.activeProjectId) ??
-    workspace.projects[0];
-
-  const commitWorkspace = (next: Workspace) => {
-    setWorkspace(next);
-    setSaved(saveWorkspace(localStorage, next));
-  };
 
   const closeNewProject = () => {
     setNewProjectOpen(false);

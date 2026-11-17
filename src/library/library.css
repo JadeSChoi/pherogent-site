@@ -1,0 +1,97 @@
+/* The Library mixes both Folio surfaces: paper titles and abstracts read in
+   serif; search chrome, metadata, and reading-state controls are sans. Entries
+   separate with hairline rules, never cards. */
+
+.library-section-title {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-base);
+}
+
+.library-saved {
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-rule-strong);
+}
+
+.library-source-list {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.library-source {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-rule);
+}
+
+.library-paper-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-weight: 500;
+}
+
+.library-paper-meta {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.library-source-standing {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+}
+
+.library-source-fields {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  max-width: 32rem;
+}
+
+.library-search-form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 32rem;
+  margin-bottom: var(--space-3);
+  justify-items: start;
+}
+
+.library-search-form > :first-child {
+  width: 100%;
+}
+
+.library-search-error {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-bad);
+}
+
+.library-result-count {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.library-result-actions {
+  margin-top: var(--space-2);
+}
+
+.library-abstract {
+  margin: var(--space-3) 0;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+.library-inspect-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { exportBackup, importBackup } from "./backup";
-import { createProject, createWorkspace } from "./workspace";
+import { createProject, createWorkspace, withSavedSource, withSourceUpdate } from "./workspace";
 import v2MultiProject from "./fixtures/v2-multi-project.json";
 import v2WithRecovery from "./fixtures/v2-with-recovery.json";
 
@@ -113,5 +113,90 @@ describe("importBackup", () => {
       expect(result.ok, `should reject ${bad}`).toBe(false);
       if (!result.ok) expect(result.reason).toBeTruthy();
     }
+  });
+});
+
+describe("saved sources in backups", () => {
+  const paper = {
+    id: "MED:33268865",
+    source: "MED",
+    title: "Reprogramming to recover youthful epigenetic information and restore vision.",
+    authors: ["Lu Y", "Brommer B", "Tian X"],
+    year: 2020,
+    journal: "Nature",
+    doi: "10.1038/s41586-020-2975-4",
+    pmid: "33268865",
+    pmcid: "PMC7752134",
+    url: "https://europepmc.org/article/MED/33268865",
+    abstract: "Ectopic expression of Oct4, Sox2 and Klf4 genes…",
+    openAccess: true,
+  };
+
+  it("round-trips a project's saved sources through export and import", () => {
+    const workspace = createWorkspace();
+    workspace.projects[0] = withSavedSource(workspace.projects[0], paper);
+    workspace.projects[0] = withSourceUpdate(workspace.projects[0], paper.id, {
+      note: "Mouse model; clinical generalization needs separate evidence.",
+      status: "useful",
+    });
+
+    const result = importBackup(exportBackup(workspace));
+
+    expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("drops unreadable saved-source entries instead of rejecting the backup", () => {
+    const workspace = createWorkspace();
+    workspace.projects[0] = withSavedSource(workspace.projects[0], paper);
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].sources.push({ broken: true }, null, { paper: { id: 7 } });
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.workspace.projects[0].sources).toHaveLength(1);
+    expect(result.workspace.projects[0].sources?.[0].paper.id).toBe(paper.id);
+  });
+
+  it("normalizes an unknown reading status to to-read", () => {
+    const workspace = createWorkspace();
+    workspace.projects[0] = withSavedSource(workspace.projects[0], paper);
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].sources[0].status = "excellent";
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.workspace.projects[0].sources?.[0].status).toBe("to-read");
+  });
+});
+
+describe("imported source links", () => {
+  it("drops a non-web paper url instead of importing it", () => {
+    const workspace = createWorkspace();
+    workspace.projects[0] = withSavedSource(workspace.projects[0], {
+      id: "MED:1",
+      source: "MED",
+      title: "A paper",
+      authors: [],
+      year: null,
+      journal: "",
+      doi: "",
+      pmid: "1",
+      pmcid: "",
+      url: "https://europepmc.org/article/MED/1",
+      abstract: "",
+      openAccess: false,
+    });
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].sources[0].paper.url = "javascript:alert(1)";
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.workspace.projects[0].sources?.[0].paper.url).toBe("");
   });
 });

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Library } from "./library/Library";
 import { Panel } from "./ui";
 import { WorkspaceControls } from "./workspace/WorkspaceControls";
+import { useWorkspace } from "./workspace/useWorkspace";
 
 type Status = {
   ok: boolean;
@@ -9,6 +11,8 @@ type Status = {
 };
 
 export function App() {
+  const { workspace, activeProject, saved, commit, commitProject } =
+    useWorkspace();
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +32,13 @@ export function App() {
     <main style={{ margin: "var(--space-7) auto", maxWidth: "40rem", padding: "0 var(--space-4)" }}>
       <h1>Pherogent</h1>
       <p>Evidence-first workspace for bio researchers. Rebuild in progress.</p>
-      <WorkspaceControls />
+      <WorkspaceControls
+        workspace={workspace}
+        activeProject={activeProject}
+        saved={saved}
+        onCommit={commit}
+      />
+      <Library project={activeProject} onProjectChange={commitProject} />
       <Panel title="API status">
         {error ? (
           <p role="alert">Status check failed: {error}</p>

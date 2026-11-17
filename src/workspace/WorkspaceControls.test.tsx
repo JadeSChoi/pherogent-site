@@ -2,6 +2,20 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { STORAGE_KEY } from "../storage/local";
 import { WorkspaceControls } from "./WorkspaceControls";
+import { useWorkspace } from "./useWorkspace";
+
+/** Composes the controls with the workspace hook the way App does. */
+function Controls() {
+  const { workspace, activeProject, saved, commit } = useWorkspace();
+  return (
+    <WorkspaceControls
+      workspace={workspace}
+      activeProject={activeProject}
+      saved={saved}
+      onCommit={commit}
+    />
+  );
+}
 
 const seedTwoProjects = () =>
   localStorage.setItem(
@@ -30,7 +44,7 @@ describe("WorkspaceControls", () => {
   beforeEach(() => localStorage.clear());
 
   it("creates a project, makes it active, and persists across remount", () => {
-    render(<WorkspaceControls />);
+    render(<Controls />);
 
     fireEvent.click(screen.getByRole("button", { name: "New project" }));
     fireEvent.change(screen.getByLabelText("Project name"), {
@@ -49,7 +63,7 @@ describe("WorkspaceControls", () => {
     ).toBeTruthy();
 
     cleanup();
-    render(<WorkspaceControls />);
+    render(<Controls />);
     expect(
       screen.getByRole("heading", { name: "Coral bleaching thresholds" }),
     ).toBeTruthy();
@@ -57,7 +71,7 @@ describe("WorkspaceControls", () => {
 
   it("switches the active project and persists the choice", () => {
     seedTwoProjects();
-    render(<WorkspaceControls />);
+    render(<Controls />);
     expect(screen.getByRole("heading", { name: "Reef thresholds" })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Project"), {
@@ -68,13 +82,13 @@ describe("WorkspaceControls", () => {
     expect(screen.getByText("Which signals initiate regrowth?")).toBeTruthy();
 
     cleanup();
-    render(<WorkspaceControls />);
+    render(<Controls />);
     expect(screen.getByRole("heading", { name: "Axolotl limbs" })).toBeTruthy();
   });
 
   it("rejects a malformed import without touching existing data", async () => {
     seedTwoProjects();
-    render(<WorkspaceControls />);
+    render(<Controls />);
     const before = localStorage.getItem(STORAGE_KEY);
 
     const file = new File(["not json {"], "backup.json", {
@@ -92,7 +106,7 @@ describe("WorkspaceControls", () => {
 
   it("imports a backup after the author confirms the replacement", async () => {
     seedTwoProjects();
-    render(<WorkspaceControls />);
+    render(<Controls />);
 
     const backup = JSON.stringify({
       version: 3,
@@ -120,7 +134,7 @@ describe("WorkspaceControls", () => {
       screen.getByRole("heading", { name: "Restored enzyme project" }),
     ).toBeTruthy();
     cleanup();
-    render(<WorkspaceControls />);
+    render(<Controls />);
     expect(
       screen.getByRole("heading", { name: "Restored enzyme project" }),
     ).toBeTruthy();

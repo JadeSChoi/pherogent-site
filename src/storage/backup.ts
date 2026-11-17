@@ -1,4 +1,5 @@
-import type { Project, Workspace } from "./workspace";
+import type { Paper } from "../library/europePmc";
+import { READING_STATUSES, type Project, type ReadingStatus, type SavedSource, type Workspace } from "./workspace";
 
 export type ImportResult =
   | { ok: true; workspace: Workspace }
@@ -10,6 +11,55 @@ export function exportBackup(workspace: Workspace): string {
 
 const isRecord = (x: unknown): x is Record<string, unknown> =>
   !!x && typeof x === "object" && !Array.isArray(x);
+
+const str = (x: unknown): string => (typeof x === "string" ? x : "");
+
+/** Backups are author-supplied files; only keep a link that is a web URL. */
+function webUrl(x: unknown): string {
+  if (typeof x !== "string") return "";
+  try {
+    const url = new URL(x);
+    return url.protocol === "https:" || url.protocol === "http:" ? x : "";
+  } catch {
+    return "";
+  }
+}
+
+function parsePaper(x: unknown): Paper | null {
+  if (!isRecord(x) || typeof x.id !== "string" || !x.id || typeof x.title !== "string" || !x.title) {
+    return null;
+  }
+  return {
+    id: x.id,
+    source: str(x.source),
+    title: x.title,
+    authors: Array.isArray(x.authors) ? x.authors.filter((a): a is string => typeof a === "string") : [],
+    year: typeof x.year === "number" && Number.isFinite(x.year) ? x.year : null,
+    journal: str(x.journal),
+    doi: str(x.doi),
+    pmid: str(x.pmid),
+    pmcid: str(x.pmcid),
+    url: webUrl(x.url),
+    abstract: str(x.abstract),
+    openAccess: x.openAccess === true,
+  };
+}
+
+/** An unreadable entry yields null and is dropped; a damaged source must not
+ * take the rest of the backup down with it. */
+function parseSavedSource(x: unknown): SavedSource | null {
+  if (!isRecord(x)) return null;
+  const paper = parsePaper(x.paper);
+  if (!paper) return null;
+  return {
+    paper,
+    note: str(x.note),
+    status: READING_STATUSES.includes(x.status as ReadingStatus)
+      ? (x.status as ReadingStatus)
+      : "to-read",
+    savedAt: str(x.savedAt),
+  };
+}
 
 function parseProject(x: unknown): Project | null {
   if (!isRecord(x)) return null;
@@ -24,6 +74,11 @@ function parseProject(x: unknown): Project | null {
     return null;
   }
   const project: Project = { id, name, question, createdAt };
+  if (Array.isArray(x.sources)) {
+    project.sources = x.sources
+      .map(parseSavedSource)
+      .filter((source): source is SavedSource => source !== null);
+  }
   if ("legacy" in x) project.legacy = x.legacy;
   return project;
 }
