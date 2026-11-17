@@ -1,0 +1,22 @@
+/* Base ground for the app, from the tokens. Reading surfaces are serif;
+   chrome and data set --font-sans locally. */
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: 1.55;
+}
+
+::selection {
+  background: var(--color-wash-strong);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}

@@ -1,4 +1,12 @@
 import { useEffect, useState } from "react";
+import { Panel } from "./ui";
+import { DesignPrototype } from "./prototype/DesignPrototype";
+
+// PROTOTYPE (issue #3): `?variant=` on this route shows the design-direction
+// prototype in dev builds. Removed from main once a direction is chosen.
+const showPrototype =
+  !import.meta.env.PROD &&
+  new URLSearchParams(window.location.search).has("variant");
 
 type Status = {
   ok: boolean;
@@ -11,6 +19,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (showPrototype) return;
     fetch("/api/status")
       .then((response) => {
         if (!response.ok) throw new Error(`status ${response.status}`);
@@ -22,20 +31,23 @@ export function App() {
       );
   }, []);
 
+  if (showPrototype) return <DesignPrototype />;
+
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", margin: "4rem auto", maxWidth: "40rem", padding: "0 1rem" }}>
+    <main style={{ margin: "var(--space-7) auto", maxWidth: "40rem", padding: "0 var(--space-4)" }}>
       <h1>Pherogent</h1>
       <p>Evidence-first workspace for bio researchers. Rebuild in progress.</p>
-      <h2>API status</h2>
-      {error ? (
-        <p role="alert">Status check failed: {error}</p>
-      ) : status ? (
-        <p>
-          {status.service} is {status.ok ? "up" : "down"} · schema {status.schemaVersion}
-        </p>
-      ) : (
-        <p>Checking…</p>
-      )}
+      <Panel title="API status">
+        {error ? (
+          <p role="alert">Status check failed: {error}</p>
+        ) : status ? (
+          <p>
+            {status.service} is {status.ok ? "up" : "down"}, schema {status.schemaVersion}
+          </p>
+        ) : (
+          <p>Checking…</p>
+        )}
+      </Panel>
     </main>
   );
 }

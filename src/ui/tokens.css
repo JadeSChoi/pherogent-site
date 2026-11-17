@@ -1,0 +1,89 @@
+/* Pherogent design tokens — "Folio" direction (docs/adr/0003).
+   The single source for color, type, and spacing. Color carries exactly one
+   meaning: evidence state (ok / warn / bad). The product itself is ink on
+   paper — no accent color. */
+
+:root {
+  /* surfaces and ink */
+  --color-paper: #faf6ee;
+  --color-panel: #fffcf5;
+  --color-ink: #211c14;
+  --color-ink-soft: #5c5342;
+  --color-rule: #e4dcca;
+  --color-rule-strong: #d4cab2;
+  --color-wash: #f2ecdd;
+  --color-wash-strong: #ebe3cf;
+  --color-mute: #6e654f;
+
+  /* evidence states — the only color in the product */
+  --color-ok: #4a6b33;
+  --color-ok-faint: rgba(74, 107, 51, 0.4);
+  --color-ok-wash: #edf0dc;
+  --color-warn: #96670f;
+  --color-warn-wash: #f7ecd2;
+  --color-bad: #a23b2a;
+  --color-bad-wash: #f6e3dd;
+
+  /* type — serif for reading surfaces and headings, sans for chrome and data */
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-sans: "Archivo", system-ui, sans-serif;
+  --text-xs: 12px;
+  --text-sm: 13.5px;
+  --text-base: 15px;
+  --text-reading: 18.5px;
+  --text-lg: 22px;
+  --text-xl: 32px;
+
+  /* spacing (4px base) and shape */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --radius-sm: 3px;
+  --radius-pill: 999px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-paper: #18140e;
+    --color-panel: #1e1912;
+    --color-ink: #eae2d0;
+    --color-ink-soft: #ada28c;
+    --color-rule: #352e22;
+    --color-rule-strong: #463d2d;
+    --color-wash: #241f16;
+    --color-wash-strong: #2b2519;
+    --color-mute: #93886f;
+    --color-ok: #96b96f;
+    --color-ok-faint: rgba(150, 185, 111, 0.45);
+    --color-ok-wash: #232a18;
+    --color-warn: #d3a44a;
+    --color-warn-wash: #2e2512;
+    --color-bad: #d97f67;
+    --color-bad-wash: #301b15;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-paper: #18140e;
+  --color-panel: #1e1912;
+  --color-ink: #eae2d0;
+  --color-ink-soft: #ada28c;
+  --color-rule: #352e22;
+  --color-rule-strong: #463d2d;
+  --color-wash: #241f16;
+  --color-wash-strong: #2b2519;
+  --color-mute: #93886f;
+  --color-ok: #96b96f;
+  --color-ok-faint: rgba(150, 185, 111, 0.45);
+  --color-ok-wash: #232a18;
+  --color-warn: #d3a44a;
+  --color-warn-wash: #2e2512;
+  --color-bad: #d97f67;
+  --color-bad-wash: #301b15;
+  color-scheme: dark;
+}
