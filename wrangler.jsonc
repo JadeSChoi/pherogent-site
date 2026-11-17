@@ -8,6 +8,12 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
+  // The AI kill switch ships off. Turning AI on requires flipping this to
+  // "true" AND setting the OPENAI_API_KEY secret, which stays unset until the
+  // owner-key gate from the follow-up ticket is verified live.
+  "vars": {
+    "PHEROGENT_AI_ENABLED": "false"
+  },
   "d1_databases": [
     {
       "binding": "DB",

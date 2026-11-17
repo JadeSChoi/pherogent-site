@@ -9,7 +9,7 @@ describe("GET /api/status", () => {
     expect(await response.json()).toEqual({
       ok: true,
       service: "pherogent",
-      schemaVersion: "0001",
+      schemaVersion: "0002",
     });
   });
 
