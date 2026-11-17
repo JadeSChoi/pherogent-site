@@ -19,3 +19,27 @@ _Avoid_: tool (ambiguous with MCP tools and UI tools), calculator, feature
 **Evidence check**:
 An author-initiated verification of one manuscript sentence against retrieved source text, producing three distinct records: the AI suggestion, the code check, and the author's decision.
 _Avoid_: sentence check, claim check, fact check
+
+**Library**:
+A Project's paper-discovery surface: searching Europe PMC, inspecting candidates, and holding the Project's saved sources.
+_Avoid_: literature (the legacy view name), explore
+
+**Saved source**:
+A paper the author saved to a Project for reading, carrying a reading note and a reading status. Explicitly not an approved citation.
+_Avoid_: reference (reserved for approved citations), bookmark
+
+**Reading status**:
+Where the author stands with a saved source: to read, useful, or conflicting. A reading state, not an evidence state.
+_Avoid_: tag
+
+**Notebook**:
+A Project's working notes in four fields: findings & interpretation, limitations & alternatives, working hypothesis, and the next experiment or question. Hypotheses and proposed tests are not findings.
+_Avoid_: analysis (the legacy view name)
+
+**Manuscript**:
+The one canonical document of a Project, written as ordered Sections and exported as Markdown.
+_Avoid_: draft (the legacy term), document
+
+**Section**:
+One heading-and-text unit of the Manuscript: the unit of editing, size caps, and scoped checks (ADR 0004).
+_Avoid_: chapter, block
