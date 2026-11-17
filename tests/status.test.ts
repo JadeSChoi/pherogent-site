@@ -1,4 +1,4 @@
-import { SELF } from "cloudflare:test";
+import { SELF, env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 describe("GET /api/status", () => {
@@ -11,6 +11,15 @@ describe("GET /api/status", () => {
       service: "pherogent",
       schemaVersion: "0001",
     });
+  });
+
+  it("reports a JSON error when the database is unavailable", async () => {
+    await env.DB.exec("DROP TABLE app_meta");
+
+    const response = await SELF.fetch("https://example.com/api/status");
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ ok: false, error: "internal_error" });
   });
 
   it("returns JSON 404 for unknown API routes", async () => {

@@ -16,4 +16,9 @@ app.get("/api/status", async (c) => {
 
 app.notFound((c) => c.json({ ok: false, error: "not_found" }, 404));
 
+app.onError((error, c) => {
+  console.error("unhandled error", error);
+  return c.json({ ok: false, error: "internal_error" }, 500);
+});
+
 export default app;

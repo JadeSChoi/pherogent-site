@@ -225,10 +225,12 @@ npx wrangler d1 create pherogent || {
   npx wrangler d1 info pherogent || true
 }
 step "Copy the database_id (UUID) from the output above."
-ask DATABASE_ID "Paste the database_id:"
-if [[ ! "$DATABASE_ID" =~ ^[0-9a-fA-F-]{36}$ ]]; then
-  warn "that doesn't look like a UUID; update wrangler.jsonc by hand if needed"
-fi
+while :; do
+  ask DATABASE_ID "Paste the database_id:"
+  [[ "$DATABASE_ID" =~ ^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$ ]] && break
+  warn "that doesn't look like a UUID; a wrong id makes every CI deploy fail"
+  confirm "Use it anyway?" && break
+done
 say "This replaces the placeholder database_id in wrangler.jsonc."
 if confirm "Write database_id into wrangler.jsonc?"; then
   DATABASE_ID="$DATABASE_ID" perl -pi -e 's/"database_id": "[^"]*"/"database_id": "$ENV{DATABASE_ID}"/' wrangler.jsonc
@@ -248,7 +250,7 @@ step "Under Permissions, click 'Add more' and add: Account · D1 · Edit."
 step "Under Account Resources, select your account."
 step "Continue to summary → Create Token → copy the token (shown once)."
 ask_secret CLOUDFLARE_API_TOKEN "Paste the API token:"
-write_env CLOUDFLARE_API_TOKEN "$CLOUDFLARE_API_TOKEN"
+note "The token is only pushed to GitHub as a secret, never saved to disk."
 
 # ── Stage 4: GitHub Actions secrets ───────────────────────────────────────
 stage "GitHub: repository secrets"
