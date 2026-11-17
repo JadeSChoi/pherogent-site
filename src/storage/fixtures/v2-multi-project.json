@@ -1,0 +1,150 @@
+{
+  "version": 2,
+  "layoutVersion": 1,
+  "productVersion": 1,
+  "onboardingSeen": true,
+  "activeProjectId": "project-main",
+  "projectMeta": { "id": "project-main", "isSample": false },
+  "projects": [
+    {
+      "id": "project-aaaa11-bbbbbb",
+      "meta": {
+        "id": "project-aaaa11-bbbbbb",
+        "isSample": false,
+        "createdAt": "2026-02-10T09:30:00.000Z"
+      },
+      "draft": {
+        "title": "Axolotl limb regeneration",
+        "text": "Fictional draft paragraph about blastema formation.",
+        "baseText": "Fictional draft paragraph about blastema formation.",
+        "claims": []
+      },
+      "research": {
+        "question": "Which signals initiate blastema formation in axolotls?",
+        "tasks": [
+          { "id": "task-1", "text": "Read the made-up review", "done": false }
+        ],
+        "sourceNotes": {},
+        "analysisNotes": "## Notes\n\nEntirely invented notebook entry.",
+        "savedSources": ["MED:00000002"],
+        "aiRuns": []
+      },
+      "papers": {
+        "MED:00000002": {
+          "id": "MED:00000002",
+          "title": "An invented paper on salamander forelimbs",
+          "authors": ["Fictional B", "Imaginary C"],
+          "year": "2021",
+          "journal": "Journal of Synthetic Fixtures",
+          "url": "https://example.org/fixture-paper-2"
+        }
+      },
+      "logs": [
+        {
+          "id": "log-21",
+          "at": "2026-02-10T09:31:00.000Z",
+          "mode": "draft",
+          "actor": "Author",
+          "type": "Project created",
+          "detail": "Author created a new local research project."
+        }
+      ],
+      "selectedDraft": null
+    },
+    {
+      "id": "project-cccc22-dddddd",
+      "meta": {
+        "id": "project-cccc22-dddddd",
+        "isSample": true,
+        "sampleVersion": "1.1",
+        "createdAt": "2026-03-01T14:00:00.000Z"
+      },
+      "draft": {
+        "title": "Cellular Blockchain · Reversal",
+        "text": "Sample manuscript text, entirely fictional.",
+        "baseText": "Sample manuscript text, entirely fictional.",
+        "claims": []
+      },
+      "research": {
+        "question": "Can the sample question be answered with sample evidence?",
+        "tasks": [],
+        "sourceNotes": {},
+        "analysisNotes": "",
+        "savedSources": [],
+        "aiRuns": []
+      },
+      "papers": {},
+      "logs": [],
+      "selectedDraft": null
+    }
+  ],
+  "mode": "draft",
+  "view": "overview",
+  "research": {
+    "question": "At what invented temperature threshold does fixture coral bleach?",
+    "tasks": [],
+    "sourceNotes": {
+      "MED:00000001": { "note": "A made-up reading note.", "status": "read" }
+    },
+    "analysisNotes": "",
+    "savedSources": ["MED:00000001"],
+    "aiRuns": []
+  },
+  "demo": [
+    {
+      "id": "demo-1",
+      "scenario": 1,
+      "original": "Fictional demo sentence one.",
+      "text": "Fictional demo sentence one.",
+      "candidate": "MED:27984723",
+      "decision": null,
+      "manual": null
+    },
+    {
+      "id": "demo-0",
+      "scenario": 0,
+      "original": "Fictional demo sentence two.",
+      "text": "Fictional demo sentence two.",
+      "candidate": "MED:27984723",
+      "decision": null,
+      "manual": null
+    },
+    {
+      "id": "demo-2",
+      "scenario": 2,
+      "original": "Fictional demo sentence three.",
+      "text": "Fictional demo sentence three.",
+      "candidate": "MED:27984723",
+      "decision": null,
+      "manual": null
+    }
+  ],
+  "draft": {
+    "title": "Coral bleaching thresholds",
+    "text": "A fully invented paragraph about fixture reefs.",
+    "baseText": "A fully invented paragraph about fixture reefs.",
+    "claims": []
+  },
+  "selected": { "demo": "demo-1", "draft": null },
+  "papers": {
+    "MED:00000001": {
+      "id": "MED:00000001",
+      "title": "A made-up study of imaginary reefs",
+      "authors": ["Example A"],
+      "year": "2020",
+      "journal": "Journal of Synthetic Fixtures",
+      "url": "https://example.org/fixture-paper-1"
+    }
+  },
+  "logs": [
+    {
+      "id": "log-1",
+      "at": "2026-01-05T10:00:00.000Z",
+      "mode": "draft",
+      "actor": "Author",
+      "type": "Source saved",
+      "detail": "Author saved an invented source from a fixture search."
+    }
+  ],
+  "legacy": null
+}

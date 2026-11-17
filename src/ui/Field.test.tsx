@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { Select, TextInput } from "./Field";
+import { Select, TextArea, TextInput } from "./Field";
 
 describe("TextInput", () => {
   it("associates the input with its label", () => {
@@ -24,6 +24,15 @@ describe("TextInput", () => {
     const input = screen.getByLabelText("Title");
     expect(input.getAttribute("aria-invalid")).toBeNull();
     expect(input.getAttribute("aria-describedby")).toBeNull();
+  });
+});
+
+describe("TextArea", () => {
+  it("associates the textarea with its label and shows a hint", () => {
+    render(<TextArea label="Research question" hint="Optional" rows={3} />);
+    const area = screen.getByLabelText("Research question");
+    expect(area.tagName).toBe("TEXTAREA");
+    expect(screen.getByText("Optional")).toBeTruthy();
   });
 });
 

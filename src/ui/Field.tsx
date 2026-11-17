@@ -3,6 +3,7 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
 } from "react";
 import "./field.css";
 
@@ -53,6 +54,24 @@ export function TextInput({ label, error, hint, ...rest }: TextInputProps) {
       <input
         id={id}
         className="ui-input"
+        {...fieldAria(error, errorId)}
+        {...rest}
+      />
+    </FieldShell>
+  );
+}
+
+type TextAreaProps = FieldChrome &
+  Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id">;
+
+export function TextArea({ label, error, hint, ...rest }: TextAreaProps) {
+  const id = useId();
+  const errorId = `${id}-error`;
+  return (
+    <FieldShell id={id} label={label} error={error} hint={hint} errorId={errorId}>
+      <textarea
+        id={id}
+        className="ui-input ui-textarea"
         {...fieldAria(error, errorId)}
         {...rest}
       />

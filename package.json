@@ -15,6 +15,7 @@
     "typecheck": "wrangler types && tsc -b",
     "test": "vitest run && npm run test:server",
     "test:server": "node --test \"tests/server/*.test.mjs\"",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "db:migrate": "wrangler d1 migrations apply pherogent --local",
     "db:migrate:remote": "wrangler d1 migrations apply pherogent --remote"
@@ -30,6 +31,7 @@
     "@cloudflare/vite-plugin": "^1.69.1",
     "@cloudflare/vitest-plugin": "^1.8.3",
     "@cloudflare/workers-types": "^5.20261117.1",
+    "@playwright/test": "^1.65.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.6",

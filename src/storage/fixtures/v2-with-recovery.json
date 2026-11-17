@@ -1,0 +1,64 @@
+{
+  "version": 2,
+  "layoutVersion": 1,
+  "productVersion": 1,
+  "onboardingSeen": true,
+  "activeProjectId": "project-main",
+  "projectMeta": { "id": "project-main", "isSample": false },
+  "projects": [
+    {
+      "id": "project-eeee33-ffffff",
+      "meta": {
+        "id": "project-eeee33-ffffff",
+        "isSample": false,
+        "createdAt": "2026-04-02T08:00:00.000Z"
+      },
+      "draft": {
+        "title": "Imaginary enzyme kinetics",
+        "text": "",
+        "baseText": "",
+        "claims": []
+      },
+      "research": {
+        "question": "",
+        "tasks": [],
+        "sourceNotes": {},
+        "analysisNotes": "",
+        "savedSources": [],
+        "aiRuns": []
+      },
+      "papers": {},
+      "logs": [],
+      "selectedDraft": null
+    },
+    { "meta": "this entry is damaged and has no id" }
+  ],
+  "mode": "draft",
+  "view": "overview",
+  "research": {
+    "question": "",
+    "tasks": [],
+    "sourceNotes": {},
+    "analysisNotes": "",
+    "savedSources": [],
+    "aiRuns": []
+  },
+  "demo": [],
+  "draft": {
+    "title": "Untitled project",
+    "text": "",
+    "baseText": "",
+    "claims": []
+  },
+  "selected": { "demo": "demo-1", "draft": null },
+  "papers": {},
+  "logs": [],
+  "legacy": {
+    "version": 1,
+    "title": "Recovered fictional manuscript",
+    "entries": [{ "text": "An invented v1 introduction paragraph." }],
+    "notes": { "Methods": "Invented v1 methods notes." }
+  },
+  "recovery": "{\"this\": \"is an unparseable earlier save, preserved raw",
+  "projectRecovery": [{ "id": 42, "note": "an earlier invalid project entry" }]
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Panel } from "./ui";
+import { WorkspaceControls } from "./workspace/WorkspaceControls";
 
 type Status = {
   ok: boolean;
@@ -27,6 +28,7 @@ export function App() {
     <main style={{ margin: "var(--space-7) auto", maxWidth: "40rem", padding: "0 var(--space-4)" }}>
       <h1>Pherogent</h1>
       <p>Evidence-first workspace for bio researchers. Rebuild in progress.</p>
+      <WorkspaceControls />
       <Panel title="API status">
         {error ? (
           <p role="alert">Status check failed: {error}</p>
