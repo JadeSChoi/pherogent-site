@@ -15,7 +15,7 @@
     "typecheck": "wrangler types && tsc -b",
     "test": "vitest run && npm run test:server",
     "test:server": "node --test \"tests/server/*.test.mjs\"",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run db:migrate && playwright test",
     "test:watch": "vitest",
     "db:migrate": "wrangler d1 migrations apply pherogent --local",
     "db:migrate:remote": "wrangler d1 migrations apply pherogent --remote"

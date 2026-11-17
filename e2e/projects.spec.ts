@@ -106,7 +106,9 @@ test("a malformed import is rejected without touching existing data", async ({
     buffer: Buffer.from("{not json"),
   });
 
-  await expect(page.getByRole("alert")).toContainText("Nothing was changed");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "not valid JSON" }),
+  ).toContainText("Nothing was changed");
   await page.reload();
   await expect(page.getByRole("heading", { name: "Keep me safe" })).toBeVisible();
 });
