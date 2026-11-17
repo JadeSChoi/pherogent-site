@@ -1,7 +1,7 @@
 // Server-only role-scoped replies. No tools, search, code execution or retries.
 import {LIMITS} from './budget.mjs';
-import {RESEARCH_LIMITS} from './research.mjs';
-import {classifyProviderError} from './provider-errors.mjs';
+import {DEFAULT_MODEL, DEFAULT_PRICING} from './config.mjs';
+import {createOpenAIProvider} from './provider.mjs';
 import trackingRule from './study-design.js';
 
 const ROLES = Object.freeze({
@@ -18,9 +18,7 @@ const ROLES = Object.freeze({
   review:'Critique clarity, consistency, reporting omissions and overclaims in the selected material. State that scientific and citation verification still requires author review.'
 });
 export const CHAT_STAGES=Object.freeze(Object.keys(ROLES));
-export const CHAT_LIMITS=Object.freeze({model:RESEARCH_LIMITS.model,maxOutputTokens:1500,maxMessageCharacters:4000,maxContextCharacters:6000,maxResponseBytes:80_000,requestTimeoutMs:25_000});
-const API='https://api.openai.com/v1/responses';
-const encoder=new TextEncoder();
+export const CHAT_LIMITS=Object.freeze({model:DEFAULT_MODEL,maxOutputTokens:1500,maxMessageCharacters:4000,maxContextCharacters:6000});
 const object=v=>v!==null&&typeof v==='object'&&!Array.isArray(v);
 const exactKeys=(v,fields)=>object(v)&&Object.keys(v).length===fields.length&&fields.every(k=>Object.hasOwn(v,k));
 const text=(v,max,required=false)=>typeof v==='string'&&v.length<=max&&(!required||v.trim().length>0);
@@ -99,24 +97,9 @@ function reviewCellTracking(value,message,context) {
   }
   return {reply,suggestedDraft,detail:changed?'A same-cell assertion was withheld or qualified by the study-design rule. The chat did not verify a paper.':compatible?'The supplied excerpt describes individual-cell tracking. The rule did not verify the outcome.':null};
 }
-async function readBody(response,signal) {
-  const declared=response.headers.get('content-length');
-  if(declared!==null&&(!/^\d+$/.test(declared)||Number(declared)>CHAT_LIMITS.maxResponseBytes)){
-    await response.body?.cancel();throw new ChatError('response_too_large','The model response exceeded the reading limit.');
-  }
-  if(!response.body)throw new ChatError('invalid_output','The model returned an empty response.');
-  const reader=response.body.getReader(),chunks=[];let size=0;
-  try {
-    for(;;){checkActive(signal);const {done,value}=await reader.read();if(done)break;size+=value.byteLength;
-      if(size>CHAT_LIMITS.maxResponseBytes)throw new ChatError('response_too_large','The model response exceeded the reading limit.');chunks.push(value);}
-  }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
-  const joined=new Uint8Array(size);let offset=0;for(const c of chunks){joined.set(c,offset);offset+=c.byteLength;}
-  return new TextDecoder('utf-8',{fatal:true}).decode(joined);
-}
-
-export async function runSectionReply({stage,message,context,studyDesign=false,apiKey,signal,onEvent=()=>{},fetchImpl=fetch,now=Date.now}) {
-  const usage={model:CHAT_LIMITS.model,calls:0,modelCalls:0,inputTokens:0,outputTokens:0,totalTokens:0,estimatedCostUsd:0,unknownCalls:0,
-    reservedTokens:LIMITS.perRunTokens,reservedCostUsd:LIMITS.perRunUsd,conservativeTokenBound:0,conservativeCostBoundUsd:0,queries:0,papersSearched:0,fullTextsRead:0};
+export async function runSectionReply({stage,message,context,studyDesign=false,apiKey,provider=null,model:modelId=DEFAULT_MODEL,pricing=DEFAULT_PRICING,limits=LIMITS,signal,onEvent=()=>{},fetchImpl=fetch,now=Date.now}) {
+  const usage={model:modelId,calls:0,modelCalls:0,inputTokens:0,outputTokens:0,totalTokens:0,estimatedCostUsd:0,unknownCalls:0,
+    reservedTokens:limits.perRunTokens,reservedCostUsd:limits.perRunUsd,conservativeTokenBound:0,conservativeCostBoundUsd:0,queries:0,papersSearched:0,fullTextsRead:0};
   const steps=[];
   const emit=event=>{try{onEvent(event);}catch{/* An observer cannot change accounting or retry. */}};
   const usageEvent=()=>emit({type:'usage',usage:{...usage}});
@@ -124,52 +107,35 @@ export async function runSectionReply({stage,message,context,studyDesign=false,a
   try {
     checkActive(signal);
     if(!validateInput({stage,message,context}))throw new ChatError('invalid_request','The selected section or message is invalid.');
-    if(now()>=Date.parse(LIMITS.pricingValidUntil))throw new ChatError('pricing_review_required','Pricing safeguards require review before another AI request.');
-    if(typeof apiKey!=='string'||!apiKey.trim())throw new ChatError('not_configured','The AI connection is not configured.');
-    const body=JSON.stringify({model:CHAT_LIMITS.model,service_tier:'default',store:false,background:false,truncation:'disabled',reasoning:{effort:'none'},
-      max_output_tokens:CHAT_LIMITS.maxOutputTokens,instructions:SYSTEM+' Assigned role: '+ROLES[stage],
-      input:JSON.stringify({untrusted_data:{stage,message,selectedContext:context}}),text:{format:{type:'json_schema',name:'pherogent_section_reply',strict:true,schema}}});
-    const inputBound=encoder.encode(body).byteLength+512,tokenBound=inputBound+CHAT_LIMITS.maxOutputTokens;
-    const costBound=Math.ceil(inputBound*RESEARCH_LIMITS.reservedInputMicrosPerToken+CHAT_LIMITS.maxOutputTokens*RESEARCH_LIMITS.outputMicrosPerToken);
-    if(tokenBound>LIMITS.perRunTokens||costBound>LIMITS.reservationMicros)throw new ChatError('token_budget','This message and context would exceed the reserved allowance. Use a shorter excerpt.');
-    usage.conservativeTokenBound=tokenBound;usage.conservativeCostBoundUsd=costBound/1e6;
-    const controller=new AbortController(),abort=()=>controller.abort();
-    signal?.addEventListener('abort',abort,{once:true});
-    if(signal?.aborted)controller.abort();
-    const timeout=setTimeout(()=>controller.abort(),CHAT_LIMITS.requestTimeoutMs);
-    let raw;
-    try {
-      checkActive(signal);step('Preparing one reply for the selected section. No search or data analysis is run.');
-      usage.calls=1;usage.modelCalls=1;usage.unknownCalls=1;usageEvent();
-      // Workers supports manual/follow, not Fetch's "error" mode. Reject every
-      // redirect ourselves so credentials can never follow a Location header.
-      const response=await fetchImpl(API,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},body,signal:controller.signal,redirect:'manual'});
-      if(response.status>=300&&response.status<400){void response.body?.cancel().catch(()=>{});throw new ChatError('provider_redirect','The AI provider returned an unexpected redirect. It was not followed.');}
-      if(!response.ok){const failure=await classifyProviderError(response,controller.signal);throw new ChatError(failure.code,failure.message);}
-      raw=await readBody(response,controller.signal);
-    }catch(error){
-      if(signal?.aborted)throw new ChatError('cancelled','The AI reply was stopped.');
-      if(controller.signal.aborted)throw new ChatError('timeout','The AI reply timed out. No automatic retry was made.');
-      if(error instanceof ChatError)throw error;
-      throw new ChatError('connection_failed','The server could not reach the AI provider. No automatic retry was made.');
-    }finally{clearTimeout(timeout);signal?.removeEventListener('abort',abort);}
-    checkActive(signal);
-    let response;try{response=JSON.parse(raw);}catch{throw new ChatError('invalid_output','The model returned unreadable data.');}
-    if(response.model!==CHAT_LIMITS.model)throw new ChatError('model_mismatch','The provider returned an unrecognized model.');
-    if(response.service_tier!=='default')throw new ChatError('pricing_tier_mismatch','The provider did not confirm the standard tier.');
-    const input=response.usage?.input_tokens,output=response.usage?.output_tokens;
-    if(!Number.isSafeInteger(input)||input<0||!Number.isSafeInteger(output)||output<0)throw new ChatError('missing_usage','The model did not report valid usage.');
-    usage.unknownCalls=0;usage.inputTokens=input;usage.outputTokens=output;usage.totalTokens=input+output;
-    usage.estimatedCostUsd=(input*RESEARCH_LIMITS.reservedInputMicrosPerToken+output*RESEARCH_LIMITS.outputMicrosPerToken)/1e6;usageEvent();
-    if(input>inputBound||output>CHAT_LIMITS.maxOutputTokens)throw new ChatError('usage_mismatch','The model reported usage beyond the expected bounds.');
-    if(response.status!=='completed')throw new ChatError('incomplete_output','The reply did not finish within its output limit.');
-    if(!Array.isArray(response.output))throw new ChatError('invalid_output','The model returned an unreadable reply.');
-    const parts=[];
-    for(const item of response.output){
-      if(item?.type!=='message'||!Array.isArray(item.content))throw new ChatError('invalid_output','The model returned an unexpected output type.');
-      for(const part of item.content){if(part?.type!=='output_text'||typeof part.text!=='string')throw new ChatError('invalid_output','The model could not provide a text reply.');parts.push(part.text);}
+    if(!provider){
+      if(typeof apiKey!=='string'||!apiKey.trim())throw new ChatError('not_configured','The AI connection is not configured.');
+      provider=createOpenAIProvider({apiKey,model:modelId,fetchImpl});
     }
-    let result;try{result=JSON.parse(parts.join(''));}catch{throw new ChatError('invalid_output','The reply was not valid JSON.');}
+    usage.model=provider.model;
+    // One bounded strict-JSON-schema completion through the provider adapter.
+    const call={name:'pherogent_section_reply',instructions:SYSTEM+' Assigned role: '+ROLES[stage],
+      input:JSON.stringify({untrusted_data:{stage,message,selectedContext:context}}),schema,maxOutputTokens:CHAT_LIMITS.maxOutputTokens};
+    const inputBound=provider.estimateInputTokens(call),tokenBound=inputBound+CHAT_LIMITS.maxOutputTokens;
+    const costBound=Math.ceil(inputBound*pricing.reservedInputMicrosPerToken+CHAT_LIMITS.maxOutputTokens*pricing.outputMicrosPerToken);
+    if(tokenBound>limits.perRunTokens||costBound>limits.reservationMicros)throw new ChatError('token_budget','This message and context would exceed the reserved allowance. Use a shorter excerpt.');
+    usage.conservativeTokenBound=tokenBound;usage.conservativeCostBoundUsd=costBound/1e6;
+    checkActive(signal);step('Preparing one reply for the selected section. No search or data analysis is run.');
+    usage.calls=1;usage.modelCalls=1;usage.unknownCalls=1;usageEvent();
+    const record=(input,output)=>{
+      usage.unknownCalls=0;usage.inputTokens=input;usage.outputTokens=output;usage.totalTokens=input+output;
+      usage.estimatedCostUsd=(input*pricing.reservedInputMicrosPerToken+output*pricing.outputMicrosPerToken)/1e6;usageEvent();
+    };
+    let completion;
+    try{completion=await provider.complete({...call,signal});}
+    catch(error){
+      if(Number.isSafeInteger(error?.inputTokens)&&Number.isSafeInteger(error?.outputTokens))record(error.inputTokens,error.outputTokens);
+      if(signal?.aborted)throw new ChatError('cancelled','The AI reply was stopped.');
+      throw new ChatError(typeof error?.code==='string'&&error.code?error.code:'connection_failed',
+        typeof error?.message==='string'&&error.message?error.message:'The server could not reach the AI provider. No automatic retry was made.');
+    }
+    checkActive(signal);
+    record(completion.inputTokens,completion.outputTokens);
+    let result=completion.value;
     if(!validateOutput(result))throw new ChatError('invalid_output','The reply did not match the required structure.');
     if(studyDesign===true&&(stage==='results'||stage==='references')){
       result=reviewCellTracking(result,message,context);

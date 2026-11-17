@@ -47,9 +47,34 @@ No secret is ever committed; `.env*`, `.dev.vars*` are gitignored.
 
 - **CI credentials**: `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` live
   as GitHub Actions repository secrets (set by the wizard via `gh secret set`).
-- **Worker runtime secrets** (e.g. `OPENAI_API_KEY` when the AI provider is
-  ported): set with `npx wrangler secret put NAME`, read from `env` in the
-  Worker. For local dev, put them in a gitignored `.dev.vars` file.
+- **Worker runtime secrets**: set with `npx wrangler secret put NAME`, read
+  from `env` in the Worker. For local dev, put them in a gitignored
+  `.dev.vars` file.
+  - `PHEROGENT_OWNER_KEY` — the owner access key paid routes require (sent as
+    `Authorization: Bearer <key>`). Set and verify this gate live **before**
+    the provider key.
+  - `OPENAI_API_KEY` — the provider key. Only configure it after the owner-key
+    gate is verified live.
+
+## AI configuration (vars, not source)
+
+Model ID, token prices, and every spend limit are read from `vars` in
+`wrangler.jsonc`; changing them is a config edit and redeploy, never a source
+edit.
+
+- `PHEROGENT_AI_ENABLED` — kill switch; paid routes refuse unless `"true"`.
+- `PHEROGENT_PUBLIC_ACCESS` — `"false"` (default) requires the owner key on
+  paid routes; flipping to `"true"` restores the public open-with-ledger demo.
+- `PHEROGENT_MODEL` — the provider model ID the adapter requests and enforces.
+- `PHEROGENT_PRICING` — JSON with `inputMicrosPerToken`,
+  `outputMicrosPerToken`, `reservedInputMicrosPerToken`, and
+  `pricesVerifiedOn` (a display-only date shown on the status endpoint; there
+  is no date-based auto-expiry).
+- `PHEROGENT_LIMITS` — optional JSON overriding any spend limit from
+  `worker/server/budget.mjs` (e.g. `{"userRunsPerDay":5,"dailyMicros":2000000}`).
+
+Invalid JSON or values in any of these makes every AI route fail closed with
+`config_invalid`.
 
 ## Manual deploy (escape hatch)
 

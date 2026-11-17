@@ -1,6 +1,9 @@
 // Monetary and token allowances are reserved before a run and never refunded.
 // This deliberately overcounts successes and ambiguous/cancelled requests.
 // All paid requests must pass through this ledger; do not use isolate memory.
+// These are the source defaults; a deployment overrides any of them through
+// configuration (see config.mjs), and every function below accepts the
+// resolved limits so changing a limit edits no source file.
 export const LIMITS = Object.freeze({
   reservationMicros: 100_000,
   dailyMicros: 1_000_000,
@@ -18,8 +21,8 @@ export const LIMITS = Object.freeze({
   maxPapers: 10,
   maxQueries: 3,
   maxModelCalls: 3,
-  maxQuestionCharacters: 2_000,
-  pricingValidUntil: '2026-11-24T00:00:00Z'
+  maxNetworkCalls: 15,
+  maxQuestionCharacters: 2_000
 });
 
 export class BudgetError extends Error {
@@ -46,19 +49,19 @@ WHERE (SELECT COALESCE(SUM(reserved_micros), 0) FROM ai_runs) + ? <= ?
 ON CONFLICT(user_id, request_id) DO NOTHING
 `;
 
-export function reservationBindings(userId, requestId, runId, now = Date.now()) {
-  const day = utcDay(now), activeSince = now - LIMITS.activeLeaseMs;
-  return [runId, userId, requestId, day, now, LIMITS.reservationMicros,
-    LIMITS.reservationMicros, LIMITS.lifetimeMicros,
-    LIMITS.perRunTokens, LIMITS.perRunTokens, LIMITS.lifetimeTokens,
-    day, LIMITS.reservationMicros, LIMITS.dailyMicros,
-    userId, day, LIMITS.userRunsPerDay,
-    userId, now - LIMITS.userCooldownMs,
-    userId, activeSince, activeSince, LIMITS.maxConcurrentRuns];
+export function reservationBindings(userId, requestId, runId, now = Date.now(), limits = LIMITS) {
+  const day = utcDay(now), activeSince = now - limits.activeLeaseMs;
+  return [runId, userId, requestId, day, now, limits.reservationMicros,
+    limits.reservationMicros, limits.lifetimeMicros,
+    limits.perRunTokens, limits.perRunTokens, limits.lifetimeTokens,
+    day, limits.reservationMicros, limits.dailyMicros,
+    userId, day, limits.userRunsPerDay,
+    userId, now - limits.userCooldownMs,
+    userId, activeSince, activeSince, limits.maxConcurrentRuns];
 }
 
-export async function readBudget(db, userId = '', now = Date.now()) {
-  const day = utcDay(now), activeSince = now - LIMITS.activeLeaseMs;
+export async function readBudget(db, userId = '', now = Date.now(), limits = LIMITS) {
+  const day = utcDay(now), activeSince = now - limits.activeLeaseMs;
   const row = await db.prepare(`SELECT
     COUNT(*) AS lifetime_runs,
     COALESCE(SUM(reserved_micros), 0) AS lifetime_reserved,
@@ -69,48 +72,48 @@ export async function readBudget(db, userId = '', now = Date.now()) {
     COUNT(CASE WHEN user_id = ? AND status = 'running' AND created_at > ? THEN 1 END) AS user_active
     FROM ai_runs`).bind(day, userId, day, userId, activeSince, userId, activeSince).first();
   if (!row || !['lifetime_reserved','daily_reserved','user_runs','active_runs','user_active','lifetime_runs'].every(k => Number.isSafeInteger(Number(row[k])) && Number(row[k]) >= 0)
-    || !Number.isSafeInteger(Number(row.lifetime_runs) * LIMITS.perRunTokens)) {
+    || !Number.isSafeInteger(Number(row.lifetime_runs) * limits.perRunTokens)) {
     throw new BudgetError('budget_unavailable', 'The spending ledger could not be verified. No AI request was started.', 503);
   }
   const last = row.user_last == null ? null : Number(row.user_last);
-  const retryAfterSeconds = last == null ? 0 : Math.max(0, Math.ceil((last + LIMITS.userCooldownMs - now) / 1000));
+  const retryAfterSeconds = last == null ? 0 : Math.max(0, Math.ceil((last + limits.userCooldownMs - now) / 1000));
   return {
     // Every old and new run consumes the same conservative reservation. Do not
     // delete ledger rows or lower perRunTokens: that would restore allowance.
-    lifetimeReservedTokens: Number(row.lifetime_runs) * LIMITS.perRunTokens,
-    remainingLifetimeTokens: Math.max(0, LIMITS.lifetimeTokens - Number(row.lifetime_runs) * LIMITS.perRunTokens),
+    lifetimeReservedTokens: Number(row.lifetime_runs) * limits.perRunTokens,
+    remainingLifetimeTokens: Math.max(0, limits.lifetimeTokens - Number(row.lifetime_runs) * limits.perRunTokens),
     dailyReservedUsd: usd(row.daily_reserved), lifetimeReservedUsd: usd(row.lifetime_reserved),
-    remainingDailyUsd: usd(LIMITS.dailyMicros - Number(row.daily_reserved)),
-    remainingLifetimeUsd: usd(LIMITS.lifetimeMicros - Number(row.lifetime_reserved)),
-    userRunsToday: Number(row.user_runs), userRunsRemaining: Math.max(0, LIMITS.userRunsPerDay - Number(row.user_runs)),
+    remainingDailyUsd: usd(limits.dailyMicros - Number(row.daily_reserved)),
+    remainingLifetimeUsd: usd(limits.lifetimeMicros - Number(row.lifetime_reserved)),
+    userRunsToday: Number(row.user_runs), userRunsRemaining: Math.max(0, limits.userRunsPerDay - Number(row.user_runs)),
     retryAfterSeconds, activeRuns: Number(row.active_runs), userActiveRuns: Number(row.user_active)
   };
 }
 
-export function blockedReason(budget) {
+export function blockedReason(budget, limits = LIMITS) {
   // Compare integer microdollars to avoid floating-point boundary drift.
-  if (Math.round(budget.remainingLifetimeUsd * 1e6) < LIMITS.reservationMicros) return ['lifetime_budget_exhausted', 'The site’s $10 starter allowance is used up. The owner must review it before more AI runs.'];
-  if (!Number.isSafeInteger(budget.remainingLifetimeTokens) || budget.remainingLifetimeTokens < LIMITS.perRunTokens) return ['token_budget_exhausted', 'The site’s shared token allowance is used up. It does not refill automatically; the owner must review it before more AI runs.'];
-  if (Math.round(budget.remainingDailyUsd * 1e6) < LIMITS.reservationMicros) return ['daily_budget_exhausted', 'The site’s $1 daily allowance is used up. It resets at midnight UTC.'];
-  if (!budget.userRunsRemaining) return ['visitor_daily_limit', 'You have used your three AI runs for today.'];
+  if (Math.round(budget.remainingLifetimeUsd * 1e6) < limits.reservationMicros) return ['lifetime_budget_exhausted', 'The site’s $' + limits.lifetimeUsd + ' starter allowance is used up. The owner must review it before more AI runs.'];
+  if (!Number.isSafeInteger(budget.remainingLifetimeTokens) || budget.remainingLifetimeTokens < limits.perRunTokens) return ['token_budget_exhausted', 'The site’s shared token allowance is used up. It does not refill automatically; the owner must review it before more AI runs.'];
+  if (Math.round(budget.remainingDailyUsd * 1e6) < limits.reservationMicros) return ['daily_budget_exhausted', 'The site’s $' + limits.dailyUsd + ' daily allowance is used up. It resets at midnight UTC.'];
+  if (!budget.userRunsRemaining) return ['visitor_daily_limit', 'You have used your ' + limits.userRunsPerDay + ' AI runs for today.'];
   if (budget.userActiveRuns) return ['run_in_progress', 'Your previous AI run is still in progress.'];
-  if (budget.retryAfterSeconds) return ['visitor_rate_limit', 'Please wait one minute between AI runs.'];
-  if (budget.activeRuns >= LIMITS.maxConcurrentRuns) return ['site_busy', 'Two research checks are already running. Please try again shortly.'];
+  if (budget.retryAfterSeconds) return ['visitor_rate_limit', 'Please wait ' + Math.ceil(limits.userCooldownMs / 1000) + ' seconds between AI runs.'];
+  if (budget.activeRuns >= limits.maxConcurrentRuns) return ['site_busy', limits.maxConcurrentRuns + ' research checks are already running. Please try again shortly.'];
   return null;
 }
 
-export async function reserveRun(db, userId, requestId, now = Date.now()) {
+export async function reserveRun(db, userId, requestId, now = Date.now(), limits = LIMITS) {
   const runId = crypto.randomUUID();
-  const result = await db.prepare(RESERVE_SQL).bind(...reservationBindings(userId, requestId, runId, now)).run();
+  const result = await db.prepare(RESERVE_SQL).bind(...reservationBindings(userId, requestId, runId, now, limits)).run();
   if (result?.success === false || !Number.isInteger(result?.meta?.changes)) throw new BudgetError('budget_unavailable', 'The spending ledger could not be verified. No AI request was started.', 503);
-  if (result.meta.changes === 1) return {runId, reservedUsd: LIMITS.perRunUsd, reservedTokens: LIMITS.perRunTokens};
+  if (result.meta.changes === 1) return {runId, reservedUsd: limits.perRunUsd, reservedTokens: limits.perRunTokens};
   const existing = await db.prepare('SELECT run_id, status FROM ai_runs WHERE user_id = ? AND request_id = ?').bind(userId, requestId).first();
   if (existing) throw new BudgetError('duplicate_request', 'This run was already submitted. It will not be charged or started again.', 409);
-  const reason = blockedReason(await readBudget(db, userId, now));
+  const reason = blockedReason(await readBudget(db, userId, now, limits), limits);
   throw new BudgetError(reason?.[0] || 'budget_unavailable', reason?.[1] || 'A budget or concurrency check prevented this run. Please try again later.', reason ? 429 : 503);
 }
 
-export function cleanUsage(value) {
+export function cleanUsage(value, limits = LIMITS) {
   const out = {model:typeof value?.model === 'string' && /^[a-zA-Z0-9._-]{1,80}$/.test(value.model) ? value.model : null};
   for (const key of ['inputTokens','outputTokens','totalTokens','modelCalls','calls','queries','papersSearched','fullTextsRead','unknownCalls','conservativeTokenBound']) {
     out[key] = Number.isSafeInteger(value?.[key]) && value[key] >= 0 ? value[key] : 0;
@@ -119,15 +122,15 @@ export function cleanUsage(value) {
   out.calls = out.calls || out.modelCalls;
   out.usageUnknown = out.unknownCalls > 0;
   for (const key of ['estimatedCostUsd','conservativeCostBoundUsd']) out[key] = Number.isFinite(value?.[key]) && value[key] >= 0 ? value[key] : 0;
-  out.reservedCostUsd = LIMITS.perRunUsd;
-  out.reservedTokens = LIMITS.perRunTokens;
+  out.reservedCostUsd = limits.perRunUsd;
+  out.reservedTokens = limits.perRunTokens;
   return out;
 }
 
-export async function completeRun(db, runId, userId, status, usage, now = Date.now()) {
+export async function completeRun(db, runId, userId, status, usage, now = Date.now(), limits = LIMITS) {
   if (!['completed','failed','cancelled'].includes(status)) throw new Error('Invalid run status');
   const result = await db.prepare(`UPDATE ai_runs SET status = ?, usage_json = ?, completed_at = ?
-    WHERE run_id = ? AND user_id = ? AND status = 'running'`).bind(status, JSON.stringify(cleanUsage(usage)), now, runId, userId).run();
+    WHERE run_id = ? AND user_id = ? AND status = 'running'`).bind(status, JSON.stringify(cleanUsage(usage, limits)), now, runId, userId).run();
   if (result?.success === false) throw new Error('Ledger update failed');
 }
 

@@ -61,9 +61,9 @@ try{
   for(const [i,code] of ['provider_quota','provider_authentication','model_mismatch','pricing_tier_mismatch','invalid_output'].entries()){
     const chat=i%2===0;
     const payload={requestId:crypto.randomUUID(),consent:true,...(chat?{stage:'methods',message:'Test',context:''}:{question:'Find evidence'})};
-    const req=new Request('https://test.example/api/'+(chat?'agent/chat':'check-claim'),{method:'POST',headers:{origin:'https://test.example','content-type':'application/json','oai-authenticated-user-id':'visitor-'+i},body:JSON.stringify(payload)});
+    const req=new Request('https://test.example/api/'+(chat?'agent/chat':'check-claim'),{method:'POST',headers:{origin:'https://test.example','content-type':'application/json',cookie:'__Host-pherogent-visitor='+crypto.randomUUID()},body:JSON.stringify(payload)});
     const failure=async()=>{const e=new Error(SECRET);e.code=code;throw e;};
-    const result=await (chat?runSectionChat:runCheck)(req,{DB,OPENAI_API_KEY:'fake-test-key',PHEROGENT_AI_ENABLED:'true'},chat?{runSectionReply:failure}:{runResearch:failure});
+    const result=await (chat?runSectionChat:runCheck)(req,{DB,OPENAI_API_KEY:'fake-test-key',PHEROGENT_AI_ENABLED:'true',PHEROGENT_PUBLIC_ACCESS:'true'},chat?{runSectionReply:failure}:{runResearch:failure});
     const raw=await result.text(),last=JSON.parse(raw.trim().split('\n').at(-1));
     assert.equal(last.type,'error');assert.equal(last.error.code,code);assert.ok(last.error.message.includes(PROVIDER_ERROR_MESSAGES[code]));assert.ok(!raw.includes(SECRET));
     assert.equal(last.reservedTokens,40000);assert.equal(last.usage.unknownCalls,1);

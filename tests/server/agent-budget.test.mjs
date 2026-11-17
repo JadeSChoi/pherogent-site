@@ -125,14 +125,16 @@ const expectCode=(promise,code)=>assert.rejects(promise,error=>error.code===code
 // HTTP route guards: no test performs a network request or spends model tokens.
 const oldNow=Date.now;Date.now=()=>NOW;
 try{
-  const makeRequest=(body,headers={},url='https://pherogent.example/api/check-claim')=>new Request(url,{method:'POST',headers:{origin:'https://pherogent.example','content-type':'application/json','oai-authenticated-user-id':'tester','oai-authenticated-user-email':'tester@example.com',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
-  const statusRequest=(headers={})=>new Request('https://pherogent.example/api/agent/status',{headers:{'oai-authenticated-user-id':'tester','oai-authenticated-user-email':'tester@example.com',...headers}});
+  const visitorCookie=id=>'__Host-pherogent-visitor='+id;
+  const TESTER=uuid();
+  const makeRequest=(body,headers={},url='https://pherogent.example/api/check-claim')=>new Request(url,{method:'POST',headers:{origin:'https://pherogent.example','content-type':'application/json',cookie:visitorCookie(TESTER),...headers},body:typeof body==='string'?body:JSON.stringify(body)});
+  const statusRequest=(headers={})=>new Request('https://pherogent.example/api/agent/status',{headers:{cookie:visitorCookie(TESTER),...headers}});
   const body=()=>({requestId:uuid(),question:'Does this source support the mechanism?',consent:true});
-  const {sqlite,db}=database();const env={DB:db,OPENAI_API_KEY:'unit-test-secret-never-network',PHEROGENT_AI_ENABLED:'true',PHEROGENT_AI_ALLOWED_EMAILS:'tester@example.com'};
+  const {sqlite,db}=database();const env={DB:db,OPENAI_API_KEY:'unit-test-secret-never-network',PHEROGENT_AI_ENABLED:'true',PHEROGENT_PUBLIC_ACCESS:'true'};
   let calls=0;const runner=async ({onEvent})=>{calls++;const usage={model:'test-model',calls:1,inputTokens:20,outputTokens:10,totalTokens:30,estimatedCostUsd:.001};onEvent({type:'usage',usage});return {question:'test',summary:{established:[],uncertain:[],nextQuestions:[]},evidence:[],papers:[],steps:[],usage};};
   const deps={runResearch:runner};
-  // Public visitors do not need an approved email or an account.
-  const openStatus=await (await getStatus(statusRequest({'oai-authenticated-user-email':'unlisted@example.com'}),{...env,PHEROGENT_AI_ALLOWED_EMAILS:''})).json();
+  // Public demo mode: visitors do not need an account or an owner key.
+  const openStatus=await (await getStatus(statusRequest(),env)).json();
   assert.equal(openStatus.canRun,true);assert.equal(openStatus.needsSignIn,false);
   const anonymousStatusResponse=await getStatus(new Request('https://pherogent.example/api/agent/status'),env);
   const cookieHeader=anonymousStatusResponse.headers.get('set-cookie');
@@ -142,7 +144,7 @@ try{
   assert.equal(anonymousStatus.limits.lifetimeTokens,2000000);assert.equal(anonymousStatus.budget.remainingLifetimeTokens,2000000);
   assert.equal(calls,0);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM ai_runs').get().n,0);
   assert.equal((await runCheck(makeRequest(body(),{origin:'https://attacker.example'}),env,deps)).status,403);
-  assert.equal((await runCheck(makeRequest(body(),{'oai-authenticated-user-id':''}),env,deps)).status,400);
+  assert.equal((await runCheck(makeRequest(body(),{cookie:''}),env,deps)).status,400);
   assert.equal((await runCheck(makeRequest(body()),{...env,OPENAI_API_KEY:''},deps)).status,503);
   assert.equal((await runCheck(makeRequest(body()),{...env,PHEROGENT_AI_ENABLED:'false'},deps)).status,503);
   assert.equal((await runCheck(makeRequest(body()),{...env,DB:null},deps)).status,503);
@@ -156,16 +158,16 @@ try{
   assert.equal(calls,0,'Rejected requests never invoke the model');
   assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM ai_runs').get().n,0,'Invalid requests do not consume a reservation');
 
-  const id=uuid();const response=await runCheck(makeRequest({...body(),requestId:id},{'oai-authenticated-user-email':'TeStEr@EXAMPLE.COM'}),{...env,PHEROGENT_AI_ALLOWED_EMAILS:' OTHER@example.com , TESTER@example.com '},deps);
+  const id=uuid();const response=await runCheck(makeRequest({...body(),requestId:id}),env,deps);
   assert.equal(response.status,200);const lines=(await response.text()).trim().split('\n').map(JSON.parse);
   assert.deepEqual(lines.map(x=>x.type),['start','usage','result']);
   assert.equal(lines[2].reservedUsd,.1);assert.equal(lines[2].result.usage.modelCalls,1);
   assert.equal(calls,1);assert.ok(!JSON.stringify(lines).includes(env.OPENAI_API_KEY));
   assert.equal((await runCheck(makeRequest({...body(),requestId:id}),env,deps)).status,409);
   assert.equal(calls,1,'Idempotent replay never makes another paid call');
-  const status=await (await getStatus(new Request('https://pherogent.example/api/agent/status',{headers:{'oai-authenticated-user-id':'tester','oai-authenticated-user-email':'tester@example.com'}}),env)).json();
+  const status=await (await getStatus(statusRequest(),env)).json();
   assert.equal(status.budget.dailyReservedUsd,.1);assert.equal(status.usage.totalTokens,30);assert.equal(status.canRun,false);assert.equal(status.reason,'visitor_rate_limit');
-  assert.ok(!JSON.stringify(status).includes('tester'),'Status never exposes the authenticated identifier');
+  assert.ok(!JSON.stringify(status).includes(TESTER),'Status never exposes the visitor identifier');
   for (const change of [{PHEROGENT_AI_ENABLED:'false'},{OPENAI_API_KEY:''}]) {
     const disabledStatus=await (await getStatus(statusRequest(),{...env,...change})).json();
     assert.equal(disabledStatus.canRun,false);assert.equal(disabledStatus.reason,'not_configured');
@@ -176,20 +178,21 @@ try{
   assert.equal(unavailableUsage.usage,null);assert.equal(unavailableUsage.reason,'budget_unavailable');
   const noLedger=await (await getStatus(statusRequest(),{...env,DB:null})).json();
   assert.equal(noLedger.usage,null);assert.equal(noLedger.canRun,false);
-  const anonymous=await (await getStatus(statusRequest({'oai-authenticated-user-id':''}),env)).json();
+  const anonymous=await (await getStatus(statusRequest({cookie:visitorCookie(uuid())}),env)).json();
   assert.equal(anonymous.usage.totalTokens,0);assert.equal(anonymous.canRun,true);assert.equal(anonymous.needsSignIn,false);
 
-  const failResponse=await runCheck(makeRequest(body(),{'oai-authenticated-user-id':'failure-user'}),env,{runResearch:async()=>{throw new Error('provider contains unit-test-secret-never-network');}});
+  const FAILURE_USER=uuid();
+  const failResponse=await runCheck(makeRequest(body(),{cookie:visitorCookie(FAILURE_USER)}),env,{runResearch:async()=>{throw new Error('provider contains unit-test-secret-never-network');}});
   const failed=(await failResponse.text()).trim().split('\n').map(JSON.parse);assert.equal(failed.at(-1).type,'error');assert.ok(!JSON.stringify(failed).includes(env.OPENAI_API_KEY));
   assert.equal(failed.at(-1).usage.usageUnknown,true,'Unaccounted interrupted calls must not be presented as confirmed zero usage');
-  assert.equal((await readBudget(db,'failure-user',NOW)).dailyReservedUsd,.2,'Provider failure retains its full reservation');
+  assert.equal((await readBudget(db,'anonymous:'+FAILURE_USER,NOW)).dailyReservedUsd,.2,'Provider failure retains its full reservation');
 
-  let sawAbort=false;
-  const cancelled=await runCheck(makeRequest(body(),{'oai-authenticated-user-id':'cancel-user'}),env,{runResearch:({signal})=>new Promise((_,reject)=>{signal.addEventListener('abort',()=>{sawAbort=true;reject(signal.reason);},{once:true});})});
+  let sawAbort=false;const CANCEL_USER=uuid();
+  const cancelled=await runCheck(makeRequest(body(),{cookie:visitorCookie(CANCEL_USER)}),env,{runResearch:({signal})=>new Promise((_,reject)=>{signal.addEventListener('abort',()=>{sawAbort=true;reject(signal.reason);},{once:true});})});
   const reader=cancelled.body.getReader();await reader.read();await reader.cancel();await new Promise(r=>setImmediate(r));
-  assert.equal(sawAbort,true);assert.equal((await readBudget(db,'cancel-user',NOW)).dailyReservedUsd,.3);
+  assert.equal(sawAbort,true);assert.equal((await readBudget(db,'anonymous:'+CANCEL_USER,NOW)).dailyReservedUsd,.3);
   const cookie=cookieHeader.split(';')[0];
-  const anonRequest=(payload,override=cookie)=>makeRequest(payload,{'oai-authenticated-user-id':'','oai-authenticated-user-email':'',cookie:override});
+  const anonRequest=(payload,override=cookie)=>makeRequest(payload,{cookie:override});
   for(const invalidCookie of ['', '__Host-pherogent-visitor=attacker',cookie+'; '+cookie]) {
     assert.equal((await runCheck(anonRequest(body(),invalidCookie),env,deps)).status,400,'Malformed/missing/duplicate visitor cookies cannot run paid work');
   }
@@ -210,12 +213,13 @@ try{
   assert.equal(exhausted.reason,'token_budget_exhausted');assert.equal(exhausted.budget.remainingLifetimeTokens,0);
   assert.equal(exhausted.canRun,false,'A new browser identity cannot reset the global pool');
   const callsBefore=calls;
-  assert.equal((await runCheck(makeRequest(body(),{'oai-authenticated-user-id':'yet-another-user'}),env,deps)).status,429);
+  assert.equal((await runCheck(makeRequest(body(),{cookie:visitorCookie(uuid())}),env,deps)).status,429);
   assert.equal(calls,callsBefore,'No provider call after shared allowance is exhausted');
-  Date.now=()=>Date.parse(LIMITS.pricingValidUntil);
-  const expired=await (await getStatus(new Request('https://pherogent.example/api/agent/status'),env)).json();
-  assert.equal(expired.reason,'pricing_review_required');assert.equal(expired.enabled,false);
-  assert.equal((await runCheck(makeRequest(body()),env,deps)).status,503,'Expired pricing blocks payment until reviewed');
+  // The prices-last-verified date is reported as information only; no clock
+  // comparison can pause runs (the budget stops above are the safeguards).
+  const finalStatus=await (await getStatus(statusRequest(),env)).json();
+  assert.equal(finalStatus.limits.pricesVerifiedOn,'2026-11-17');
+  assert.ok(!('pricingValidUntil' in finalStatus.limits));
   sqlite.close();
 }finally{Date.now=oldNow;}
-console.log('Agent budget/API tests passed: atomic concurrent reservations, daily/lifetime/per-user stops, idempotency, public visitor cookies/origin/consent, bounded input, no refunds, cancellation, private usage, honest streaming and pricing expiry.');
+console.log('Agent budget/API tests passed: atomic concurrent reservations, daily/lifetime/per-user stops, idempotency, public visitor cookies/origin/consent, bounded input, no refunds, cancellation, private usage and honest streaming.');

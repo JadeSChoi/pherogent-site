@@ -136,7 +136,6 @@ for(const metadata of [
 }
 {
   const h=harness();await assert.rejects(h.run({question:'x'.repeat(2001)}),e=>e.code==='invalid_question');assert.equal(h.calls.length,0);
-  await assert.rejects(h.run({now:()=>Date.parse('2026-11-24T00:00:00Z')}),e=>e.code==='price_review_required');assert.equal(h.calls.length,0);
 }
 {
   const h=harness({records:n=>Array.from({length:3},(_,i)=>record(n*100+i+1,{title:'\u{1F600}'.repeat(170),abstractText:'\u{1F600}'.repeat(10000)})),screen:{keep:[{paperId:'MED:101',reason:'one'},{paperId:'MED:102',reason:'two'},{paperId:'MED:103',reason:'three'}],refinementQuery:null}});
@@ -150,4 +149,4 @@ assert.equal(normalizePaper({source:'https://evil.example',id:'1',title:'bad'}),
 assert.equal(normalizePaper(record('../outside')),null);
 assert.equal(plainText('H<sub>2</sub>O <italic>reprogramming</italic>'),'H2O reprogramming','Inline XML does not invent spaces inside source words');
 assert.equal(RESEARCH_LIMITS.runBudgetMicros,100000);
-console.log('Agent research tests passed: bounded searches/model calls/spending, exact quotations, independent source text, untrusted data, schemas, fabricated/empty evidence, access limits, aborts, no retries, price expiry.');
+console.log('Agent research tests passed: bounded searches/model calls/spending, exact quotations, independent source text, untrusted data, schemas, fabricated/empty evidence, access limits, aborts, no retries.');

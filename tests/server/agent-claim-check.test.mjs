@@ -193,10 +193,10 @@ for(const extra of [
 const schema='CREATE TABLE ai_runs(run_id TEXT PRIMARY KEY,user_id TEXT NOT NULL,request_id TEXT NOT NULL,day TEXT NOT NULL,created_at INTEGER NOT NULL,status TEXT NOT NULL,reserved_micros INTEGER NOT NULL,usage_json TEXT,completed_at INTEGER,UNIQUE(user_id,request_id));';
 function database(){const sqlite=new DatabaseSync(':memory:');sqlite.exec(schema);const db={prepare(sql){return {bind(...args){return {async run(){const r=sqlite.prepare(sql).run(...args);return {success:true,meta:{changes:Number(r.changes)}};},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return {success:true,results:sqlite.prepare(sql).all(...args)};}};}};}};return {sqlite,db};}
 const payload=()=>({requestId:crypto.randomUUID(),consent:true,question:original,claim:{...claim},citedPaperIds:['MED:101']});
-const request=value=>new Request('https://pherogent.example/api/check-claim',{method:'POST',headers:{origin:'https://pherogent.example','content-type':'application/json','oai-authenticated-user-id':'author'},body:JSON.stringify(value)});
+const request=value=>new Request('https://pherogent.example/api/check-claim',{method:'POST',headers:{origin:'https://pherogent.example','content-type':'application/json',cookie:'__Host-pherogent-visitor=0f0e0d0c-0b0a-4908-8706-050403020100'},body:JSON.stringify(value)});
 const originalNow=Date.now;Date.now=NOW;
 try{
-  const {sqlite,db}=database(),env={DB:db,OPENAI_API_KEY:'fixture-only-never-network',PHEROGENT_AI_ENABLED:'true'};let invocations=0;
+  const {sqlite,db}=database(),env={DB:db,OPENAI_API_KEY:'fixture-only-never-network',PHEROGENT_AI_ENABLED:'true',PHEROGENT_PUBLIC_ACCESS:'true'};let invocations=0;
   const deps={runResearch:async input=>{invocations++;assert.deepEqual(input.claim,claim);assert.deepEqual(input.citedPaperIds,['MED:101']);return harness().run(input);}};
   for(const invalid of [
     {...payload(),studyDesign:'true'}, {...payload(),claim:undefined,citedPaperIds:undefined,studyDesign:true},

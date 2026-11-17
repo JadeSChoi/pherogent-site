@@ -1,18 +1,21 @@
 // Server-only bounded literature agent. Never import this module into a client bundle.
 import {LIMITS} from './budget.mjs';
-import {classifyProviderError} from './provider-errors.mjs';
+import {DEFAULT_MODEL, DEFAULT_PRICING} from './config.mjs';
+import {createOpenAIProvider} from './provider.mjs';
 import designRule from './study-design.js';
 const DESIGN_VERSION = designRule.ruleId;
+// The source defaults, kept as one frozen view for callers and tests. The
+// running values come from the provider/pricing/limits passed to runResearch.
 export const RESEARCH_LIMITS = Object.freeze({
-  model: 'gpt-5.6-terra', maxCalls: 3, maxQueries: 3, maxPapers: 10, maxKept: 3,
-  maxNetworkCalls: 15, runBudgetMicros: 100000, priceReviewUntil: '2026-11-24',
-  inputMicrosPerToken: 2, outputMicrosPerToken: 12, reservedInputMicrosPerToken: 2.5,
+  model: DEFAULT_MODEL, maxCalls: LIMITS.maxModelCalls, maxQueries: LIMITS.maxQueries,
+  maxPapers: LIMITS.maxPapers, maxKept: 3,
+  maxNetworkCalls: LIMITS.maxNetworkCalls, runBudgetMicros: LIMITS.reservationMicros,
+  inputMicrosPerToken: DEFAULT_PRICING.inputMicrosPerToken,
+  outputMicrosPerToken: DEFAULT_PRICING.outputMicrosPerToken,
+  reservedInputMicrosPerToken: DEFAULT_PRICING.reservedInputMicrosPerToken,
   maxRunTokens: LIMITS.perRunTokens,
 });
-const API = 'https://api.openai.com/v1/responses';
 const PMC = 'https://www.ebi.ac.uk/europepmc/webservices/rest/';
-const encoder = new TextEncoder();
-const bytes = value => encoder.encode(value).byteLength;
 const whitespace = value => String(value).replace(/\s+/g, ' ').trim();
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const keys = (value, names) => object(value) && Object.keys(value).length === names.length && names.every(name=>Object.hasOwn(value,name));
@@ -126,16 +129,6 @@ async function boundedBody(response, limit, signal) {
   const joined=new Uint8Array(size);let offset=0;for(const chunk of chunks){joined.set(chunk,offset);offset+=chunk.length;}
   return new TextDecoder().decode(joined);
 }
-function extractOutput(response) {
-  if (response.status !== 'completed') throw new ResearchError('incomplete_output','The model stopped at its output limit. No automatic retry was made.');
-  if (!Array.isArray(response.output)) throw new ResearchError('invalid_output','The model returned an unreadable response.');
-  const texts=[];
-  for (const item of response.output) if(item?.type==='message'&&Array.isArray(item.content)) {
-    for (const c of item.content) { if(c.type==='refusal')throw new ResearchError('model_refusal','The model declined this research request.'); if(c.type==='output_text'&&typeof c.text==='string')texts.push(c.text); }
-  }
-  let parsed;try { parsed=JSON.parse(texts.join('')); } catch { throw new ResearchError('invalid_output','The model response did not match the required JSON format.'); }
-  return parsed;
-}
 function passagesFromXML(xml, question) {
   const terms=new Set((question.toLowerCase().match(/[a-z0-9]{4,}/g)||[]));
   const body=xml.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1]; if(!body)return [];
@@ -144,32 +137,29 @@ function passagesFromXML(xml, question) {
     .sort((a,b)=>b.score-a.score).slice(0,2).map(({id,text,location})=>({id,text:clip(text,850),location:location+' (excerpt)'}));
 }
 
-export async function runResearch({question,claim=null,citedPaperIds=[],studyDesign=true,apiKey,signal,onEvent=()=>{},fetchImpl=fetch,now=Date.now}) {
+export async function runResearch({question,claim=null,citedPaperIds=[],studyDesign=true,apiKey,provider=null,model:modelId=DEFAULT_MODEL,pricing=DEFAULT_PRICING,limits=LIMITS,signal,onEvent=()=>{},fetchImpl=fetch,now=Date.now}) {
   const steps=[];
-  const usage={model:RESEARCH_LIMITS.model,calls:0,modelCalls:0,inputTokens:0,outputTokens:0,totalTokens:0,estimatedCostUsd:0,
-    reservedCostUsd:0.10,reservedTokens:LIMITS.perRunTokens,conservativeTokenBound:0,conservativeCostBoundUsd:0,queries:0,papersSearched:0,fullTextsRead:0,unknownCalls:0};
+  const usage={model:modelId,calls:0,modelCalls:0,inputTokens:0,outputTokens:0,totalTokens:0,estimatedCostUsd:0,
+    reservedCostUsd:limits.perRunUsd,reservedTokens:limits.perRunTokens,conservativeTokenBound:0,conservativeCostBoundUsd:0,queries:0,papersSearched:0,fullTextsRead:0,unknownCalls:0};
   let boundMicros=0,boundTokens=0,networkCalls=0;
   const emit=event=>{try{onEvent(event);}catch{/* A disconnected observer cannot change budgets. */}};
   const step=(stage,detail,actor='System')=>{const item={type:'step',stage,detail,actor,at:new Date(now()).toISOString()};steps.push(item);emit(item);};
   const usageEvent=()=>emit({type:'usage',usage:{...usage}});
   async function request(url,options={},limit=100000,timeoutMs=18000) {
     ensureActive(signal);
-    if (++networkCalls>RESEARCH_LIMITS.maxNetworkCalls)throw new ResearchError('network_budget','The network request limit was reached.');
+    if (++networkCalls>limits.maxNetworkCalls)throw new ResearchError('network_budget','The network request limit was reached.');
     // URLs are constructed internally, not accepted from the model or user.
     const allowed=new URL(url);
-    if (!(url===API||(allowed.origin==='https://www.ebi.ac.uk'&&allowed.pathname.startsWith('/europepmc/webservices/rest/'))))throw new ResearchError('invalid_destination','The requested destination is not allowed.');
+    if (!(allowed.origin==='https://www.ebi.ac.uk'&&allowed.pathname.startsWith('/europepmc/webservices/rest/')))throw new ResearchError('invalid_destination','The requested destination is not allowed.');
     const controller=new AbortController(),abort=()=>controller.abort();
     if(signal)signal.addEventListener('abort',abort,{once:true});
     const timer=setTimeout(()=>controller.abort(),timeoutMs);
     try {
       // Cloudflare Workers requires manual mode; never follow a redirect to a
-      // new destination with the API credential or research text.
+      // new destination with the research text.
       const response=await fetchImpl(url,{...options,signal:controller.signal,redirect:'manual'});
-      if(response.status>=300&&response.status<400){void response.body?.cancel().catch(()=>{});throw new ResearchError(url===API?'provider_redirect':'source_redirect','The research service returned an unexpected redirect. It was not followed.');}
-      if(!response.ok){
-        if(url===API){const failure=await classifyProviderError(response,controller.signal);throw new ResearchError(failure.code,failure.message);}
-        await response.body?.cancel();throw new ResearchError('source_unavailable','Europe PMC could not complete this request.');
-      }
+      if(response.status>=300&&response.status<400){void response.body?.cancel().catch(()=>{});throw new ResearchError('source_redirect','The research service returned an unexpected redirect. It was not followed.');}
+      if(!response.ok){await response.body?.cancel();throw new ResearchError('source_unavailable','Europe PMC could not complete this request.');}
       return await boundedBody(response,limit,controller.signal);
     } catch(error) {
       if(signal?.aborted)throw abortError();
@@ -178,44 +168,44 @@ export async function runResearch({question,claim=null,citedPaperIds=[],studyDes
       throw new ResearchError('connection_failed','A research service could not be reached. No automatic retry was made.');
     } finally {clearTimeout(timer);signal?.removeEventListener('abort',abort);}
   }
+  // Every model call goes through the provider adapter; this wrapper owns the
+  // run's call/token/spend accounting while the adapter owns the wire.
   async function model(stage,instruction,data,schema,maxOutputTokens,validate) {
     ensureActive(signal);
-    if(usage.calls>=RESEARCH_LIMITS.maxCalls)throw new ResearchError('call_budget','The model call limit was reached.');
-    const body=JSON.stringify({model:RESEARCH_LIMITS.model,service_tier:'default',store:false,background:false,truncation:'disabled',reasoning:{effort:'none'},max_output_tokens:maxOutputTokens,
-      instructions:SYSTEM+' '+instruction,input:JSON.stringify({untrusted_data:data}),
-      text:{format:{type:'json_schema',name:'pherogent_'+stage,strict:true,schema}}});
-    // A deliberately conservative bound: the entire serialized body, one token
-    // per UTF-8 byte, plus hidden-format overhead. Includes schema and instructions.
-    const inputBound=bytes(body)+512;
+    if(usage.calls>=limits.maxModelCalls)throw new ResearchError('call_budget','The model call limit was reached.');
+    const call={name:'pherogent_'+stage,instructions:SYSTEM+' '+instruction,input:JSON.stringify({untrusted_data:data}),schema,maxOutputTokens};
+    const inputBound=provider.estimateInputTokens(call);
     const tokenBound=inputBound+maxOutputTokens;
-    const costBound=Math.ceil(inputBound*RESEARCH_LIMITS.reservedInputMicrosPerToken+maxOutputTokens*RESEARCH_LIMITS.outputMicrosPerToken);
-    if(boundTokens+tokenBound>RESEARCH_LIMITS.maxRunTokens || boundMicros+costBound>RESEARCH_LIMITS.runBudgetMicros)throw new ResearchError('token_budget','This request would exceed the run’s reserved token or spending allowance. Shorten the question or inspect sources manually.');
+    const costBound=Math.ceil(inputBound*pricing.reservedInputMicrosPerToken+maxOutputTokens*pricing.outputMicrosPerToken);
+    if(boundTokens+tokenBound>limits.perRunTokens || boundMicros+costBound>limits.reservationMicros)throw new ResearchError('token_budget','This request would exceed the run’s reserved token or spending allowance. Shorten the question or inspect sources manually.');
     boundTokens+=tokenBound;usage.conservativeTokenBound=boundTokens;
     boundMicros+=costBound;usage.conservativeCostBoundUsd=boundMicros/1e6;
+    if(++networkCalls>limits.maxNetworkCalls)throw new ResearchError('network_budget','The network request limit was reached.');
     usage.calls++;usage.modelCalls=usage.calls;usage.unknownCalls++;usageEvent();
-    const raw=await request(API,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+apiKey},body},80000,25000);
-    let response;try{response=JSON.parse(raw);}catch{throw new ResearchError('invalid_output','The model service returned unreadable data.');}
-    // Reject an unrecognized pricing basis before permitting any next call.
-    // The currently documented model ID has no separately listed dated snapshot.
-    if(response.model!==RESEARCH_LIMITS.model)throw new ResearchError('model_mismatch','The provider returned an unrecognized model. Further calls were stopped.');
-    if(response.service_tier!=='default')throw new ResearchError('pricing_tier_mismatch','The provider did not confirm the standard pricing tier. Further calls were stopped.');
-    const input=response.usage?.input_tokens,output=response.usage?.output_tokens;
-    if(!Number.isSafeInteger(input)||input<0||!Number.isSafeInteger(output)||output<0)throw new ResearchError('missing_usage','The model response omitted usage data. The run stopped to protect the budget.');
-    usage.unknownCalls--;usage.inputTokens+=input;usage.outputTokens+=output;usage.totalTokens=usage.inputTokens+usage.outputTokens;
-    // Conservative estimate: all input uses the maximum cache-write rate;
-    // no cache discounts are assumed. This is not a provider invoice.
-    usage.estimatedCostUsd=(usage.inputTokens*RESEARCH_LIMITS.reservedInputMicrosPerToken+usage.outputTokens*RESEARCH_LIMITS.outputMicrosPerToken)/1e6;
-    usageEvent();
-    if(input>inputBound||output>maxOutputTokens)throw new ResearchError('usage_mismatch','Model usage exceeded the expected bound. Further calls were stopped.');
-    const parsed=extractOutput(response);
-    if(!validate(parsed))throw new ResearchError('invalid_output','The model response failed validation. No automatic retry was made.');
-    return parsed;
+    const record=(input,output)=>{
+      usage.unknownCalls--;usage.inputTokens+=input;usage.outputTokens+=output;usage.totalTokens=usage.inputTokens+usage.outputTokens;
+      // Conservative estimate: all input uses the maximum cache-write rate;
+      // no cache discounts are assumed. This is not a provider invoice.
+      usage.estimatedCostUsd=(usage.inputTokens*pricing.reservedInputMicrosPerToken+usage.outputTokens*pricing.outputMicrosPerToken)/1e6;
+      usageEvent();
+    };
+    let completion;
+    try{completion=await provider.complete({...call,signal});}
+    catch(error){
+      if(Number.isSafeInteger(error?.inputTokens)&&Number.isSafeInteger(error?.outputTokens))record(error.inputTokens,error.outputTokens);
+      if(signal?.aborted)throw abortError();
+      throw new ResearchError(typeof error?.code==='string'&&error.code?error.code:'provider_unavailable',
+        typeof error?.message==='string'&&error.message?error.message:'The model service could not complete the request. No automatic retry was made.');
+    }
+    record(completion.inputTokens,completion.outputTokens);
+    if(!validate(completion.value))throw new ResearchError('invalid_output','The model response failed validation. No automatic retry was made.');
+    return completion.value;
   }
   const allPapers=new Map();
   async function search(query,maxResults) {
     ensureActive(signal);
-    if(!queryValid(query)||usage.queries>=RESEARCH_LIMITS.maxQueries)return [];
-    const room=RESEARCH_LIMITS.maxPapers-allPapers.size;
+    if(!queryValid(query)||usage.queries>=limits.maxQueries)return [];
+    const room=limits.maxPapers-allPapers.size;
     if(room<=0)return [];
     const count=Math.min(maxResults,room);usage.queries++;
     step('search','Searching Europe PMC: '+query,'AI');
@@ -224,7 +214,7 @@ export async function runResearch({question,claim=null,citedPaperIds=[],studyDes
     if(!Number.isFinite(data.hitCount)||!Array.isArray(data.resultList?.result)){step('search','An unreadable search response was discarded.');return [];}
     const added=[];
     for(const record of data.resultList.result.slice(0,count)){
-      const paper=normalizePaper(record);if(paper&&!allPapers.has(paper.id)&&allPapers.size<RESEARCH_LIMITS.maxPapers){allPapers.set(paper.id,paper);added.push(paper);}
+      const paper=normalizePaper(record);if(paper&&!allPapers.has(paper.id)&&allPapers.size<limits.maxPapers){allPapers.set(paper.id,paper);added.push(paper);}
     }
     usage.papersSearched=allPapers.size;
     step('search',data.hitCount+' matching records; '+added.length+' new papers retrieved. Only '+allPapers.size+' unique papers are in this run’s reading set.');
@@ -245,8 +235,11 @@ export async function runResearch({question,claim=null,citedPaperIds=[],studyDes
     if(!string(question,2000)||!question.trim())throw new ResearchError('invalid_question','Enter a research question of at most 2,000 characters.');
     if(!validClaimInput(question,claim,citedPaperIds))throw new ResearchError('invalid_claim','The original sentence and claim ID must match this request, with at most three unique valid source IDs.');
     boundClaim=claim?{id:claim.id,text:claim.text,citedPaperIds:[...citedPaperIds]}:null;
-    if(typeof apiKey!=='string'||!apiKey.trim())throw new ResearchError('not_configured','The model connection is not configured.');
-    if(now()>=Date.parse(RESEARCH_LIMITS.priceReviewUntil+'T00:00:00Z'))throw new ResearchError('price_review_required','AI is paused until the model price and budget assumptions are reviewed.');
+    if(!provider){
+      if(typeof apiKey!=='string'||!apiKey.trim())throw new ResearchError('not_configured','The model connection is not configured.');
+      provider=createOpenAIProvider({apiKey,model:modelId,fetchImpl});
+    }
+    usage.model=provider.model;
     // A claim is an immutable input, including its exact text. Only legacy
     // freeform questions are trimmed. Suggested wording is a separate field.
     question=boundClaim?boundClaim.text:question.trim();

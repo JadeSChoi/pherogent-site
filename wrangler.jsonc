@@ -10,9 +10,18 @@
   },
   // The AI kill switch ships off. Turning AI on requires flipping this to
   // "true" AND setting the OPENAI_API_KEY secret, which stays unset until the
-  // owner-key gate from the follow-up ticket is verified live.
+  // owner-key gate is verified live. Paid routes also require the
+  // PHEROGENT_OWNER_KEY secret unless PHEROGENT_PUBLIC_ACCESS is flipped to
+  // "true", which restores the public open-with-ledger demo.
+  // Spend limits may be overridden without a source edit via a
+  // PHEROGENT_LIMITS JSON var (e.g. {"userRunsPerDay":5}); defaults live in
+  // worker/server/budget.mjs. PHEROGENT_PRICING.pricesVerifiedOn is the
+  // display-only date the owner last verified the model prices.
   "vars": {
-    "PHEROGENT_AI_ENABLED": "false"
+    "PHEROGENT_AI_ENABLED": "false",
+    "PHEROGENT_PUBLIC_ACCESS": "false",
+    "PHEROGENT_MODEL": "gpt-5.6-terra",
+    "PHEROGENT_PRICING": "{\"inputMicrosPerToken\":2,\"outputMicrosPerToken\":12,\"reservedInputMicrosPerToken\":2.5,\"pricesVerifiedOn\":\"2026-11-17\"}"
   },
   "d1_databases": [
     {

@@ -6,6 +6,11 @@ type AgentStatus = {
   canRun: boolean;
   reason: string | null;
   signedIn: boolean;
+  publicAccess: boolean;
+  limits: {
+    pricesVerifiedOn: string;
+    userRunsPerDay: number;
+  } & Record<string, unknown>;
   budget: {
     remainingDailyUsd: number;
     remainingLifetimeUsd: number;
@@ -36,6 +41,11 @@ describe("agent API on the deployed worker shape (AI disabled, no provider key)"
     expect(status.canRun).toBe(false);
     expect(status.reason).toBe("not_configured");
     expect(status.signedIn).toBe(false);
+    // The deployment ships locked: no public demo until the config flip, and
+    // the prices-last-verified date is reported as information only.
+    expect(status.publicAccess).toBe(false);
+    expect(status.limits.pricesVerifiedOn).toBe("2026-11-17");
+    expect(status.limits).not.toHaveProperty("pricingValidUntil");
     // The budget comes from the ai_runs ledger in D1, not an invented zero.
     expect(status.budget.remainingDailyUsd).toBe(1);
     expect(status.budget.remainingLifetimeUsd).toBe(10);

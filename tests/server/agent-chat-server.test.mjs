@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {runSectionReply,CHAT_STAGES,CHAT_LIMITS} from '../../worker/server/chat.mjs';
 import {runSectionChat,runCheck,getStatus} from './route.mjs';
-import {LIMITS,readBudget} from '../../worker/server/budget.mjs';
+import {readBudget} from '../../worker/server/budget.mjs';
 
 const NOW=Date.parse('2026-10-24T12:00:00Z');
 const result={reply:'This is a proposed analysis plan, not an executed analysis.',suggestedDraft:{title:'Planned methods',body:'Specify the mouse-level split before fitting the model.'}};
@@ -63,7 +63,7 @@ for(const stage of CHAT_STAGES){const h=harness();const r=await h.run({stage});a
   const body=JSON.parse(h.calls[0].init.body);assert.equal(JSON.parse(body.input).untrusted_data.message,malicious);
   assert.ok(!body.instructions.includes(malicious));assert.equal(h.calls.length,1);assert.equal(h.calls[0].url,'https://api.openai.com/v1/responses');
 }
-for(const extra of [{stage:'admin'},{message:''},{message:'x'.repeat(4001)},{context:{}},{context:'x'.repeat(6001)},{apiKey:''},{now:()=>Date.parse(LIMITS.pricingValidUntil)}]){
+for(const extra of [{stage:'admin'},{message:''},{message:'x'.repeat(4001)},{context:{}},{context:'x'.repeat(6001)},{apiKey:''}]){
   const h=harness();await assert.rejects(h.run(extra));assert.equal(h.calls.length,0,'Invalid input/config cannot call provider');
 }
 {
@@ -93,9 +93,11 @@ for(const [extra,code] of [[{model:'different'},'model_mismatch'],[{service_tier
 
 const SCHEMA='CREATE TABLE ai_runs(run_id TEXT PRIMARY KEY,user_id TEXT NOT NULL,request_id TEXT NOT NULL,day TEXT NOT NULL,created_at INTEGER NOT NULL,status TEXT NOT NULL,reserved_micros INTEGER NOT NULL,usage_json TEXT,completed_at INTEGER,UNIQUE(user_id,request_id));';
 function database(){const sqlite=new DatabaseSync(':memory:');sqlite.exec(SCHEMA);const db={prepare(sql){return {bind(...args){return {async run(){const r=sqlite.prepare(sql).run(...args);return {success:true,meta:{changes:Number(r.changes)}};},async first(){return sqlite.prepare(sql).get(...args)||null;},async all(){return {success:true,results:sqlite.prepare(sql).all(...args)};}};}};}};return {sqlite,db};}
-const request=(value,headers={},path='chat')=>new Request('https://pherogent.example/api/agent/'+path,{method:'POST',headers:{origin:'https://pherogent.example','content-type':'application/json','oai-authenticated-user-id':'author',...headers},body:typeof value==='string'?value:JSON.stringify(value)});
+const visitorCookie=id=>'__Host-pherogent-visitor='+id;
+const AUTHOR=crypto.randomUUID();
+const request=(value,headers={},path='chat')=>new Request('https://pherogent.example/api/agent/'+path,{method:'POST',headers:{origin:'https://pherogent.example','content-type':'application/json',cookie:visitorCookie(AUTHOR),...headers},body:typeof value==='string'?value:JSON.stringify(value)});
 const payload=()=>({requestId:crypto.randomUUID(),consent:true,stage:'methods',message:'Suggest methods.',context:'Author-selected context.'});
-const envFor=db=>({DB:db,OPENAI_API_KEY:'unit-test-only-no-network',PHEROGENT_AI_ENABLED:'true'});
+const envFor=db=>({DB:db,OPENAI_API_KEY:'unit-test-only-no-network',PHEROGENT_AI_ENABLED:'true',PHEROGENT_PUBLIC_ACCESS:'true'});
 const originalNow=Date.now;Date.now=()=>NOW;
 try {
   {
@@ -106,19 +108,19 @@ try {
     }
     assert.equal((await runSectionChat(request('x'.repeat(48001)),env,deps)).status,413);
     assert.equal((await runSectionChat(request(payload(),{origin:'https://attacker.example'}),env,deps)).status,403);
-    assert.equal((await runSectionChat(request(payload(),{'oai-authenticated-user-id':''}),env,deps)).status,400);
+    assert.equal((await runSectionChat(request(payload(),{cookie:''}),env,deps)).status,400);
     assert.equal((await runSectionChat(request(payload()),{...env,PHEROGENT_AI_ENABLED:'false'},deps)).status,503);
     assert.equal((await runSectionChat(request(payload()),{...env,OPENAI_API_KEY:''},deps)).status,503);
     assert.equal((await runSectionChat(request(payload()),{...env,DB:{prepare(){throw new Error('unavailable');}}},deps)).status,503);
     assert.equal(calls,0);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM ai_runs').get().n,0);
     const statusResponse=await getStatus(new Request('https://pherogent.example/api/agent/status'),env),cookie=statusResponse.headers.get('set-cookie').split(';')[0];
-    const data=payload(),response=await runSectionChat(request(data,{'oai-authenticated-user-id':'',cookie}),env,deps);
+    const data=payload(),response=await runSectionChat(request(data,{cookie}),env,deps);
     assert.equal(response.status,200);const events=(await response.text()).trim().split('\n').map(JSON.parse);
     assert.equal(events[0].type,'start');assert.equal(events[0].reservedTokens,40000);assert.equal(events.at(-1).type,'result');assert.equal(events.at(-1).result.stage,'methods');assert.equal(events.at(-1).result.usage.modelCalls,1);assert.equal(calls,1);
     assert.ok(!JSON.stringify(events).includes(env.OPENAI_API_KEY));
-    assert.equal((await runSectionChat(request(data,{'oai-authenticated-user-id':'',cookie}),env,deps)).status,409);
+    assert.equal((await runSectionChat(request(data,{cookie}),env,deps)).status,409);
     // Cross-route idempotency is shared, not separate per endpoint.
-    assert.equal((await runCheck(request({requestId:data.requestId,consent:true,question:'Check a claim.'},{'oai-authenticated-user-id':'',cookie},'../check-claim'),env,{runResearch:()=>{throw new Error('must not run');}})).status,409);
+    assert.equal((await runCheck(request({requestId:data.requestId,consent:true,question:'Check a claim.'},{cookie},'../check-claim'),env,{runResearch:()=>{throw new Error('must not run');}})).status,409);
     const after=await (await getStatus(new Request('https://pherogent.example/api/agent/status',{headers:{cookie}}),env)).json();
     assert.equal(after.usage.totalTokens,300);assert.equal(after.budget.remainingLifetimeTokens,1960000);assert.equal(calls,1);
     sqlite.close();
@@ -129,8 +131,8 @@ try {
     let chatCalls=0,researchCalls=0;
     const stubUsage={inputTokens:20,outputTokens:10,totalTokens:30,calls:1,modelCalls:1,unknownCalls:0,estimatedCostUsd:.001};
     const [chat,research]=await Promise.all([
-      runSectionChat(request(payload(),{'oai-authenticated-user-id':'chat-contender'}),env,{runSectionReply:async()=>{chatCalls++;return {stage:'methods',...result,usage:stubUsage,steps:[]};}}),
-      runCheck(request({requestId:crypto.randomUUID(),question:'Check a claim.',consent:true},{'oai-authenticated-user-id':'research-contender'},'../check-claim'),env,{runResearch:async()=>{researchCalls++;return {usage:stubUsage,evidence:[],papers:[],steps:[]};}})
+      runSectionChat(request(payload(),{cookie:visitorCookie(crypto.randomUUID())}),env,{runSectionReply:async()=>{chatCalls++;return {stage:'methods',...result,usage:stubUsage,steps:[]};}}),
+      runCheck(request({requestId:crypto.randomUUID(),question:'Check a claim.',consent:true},{cookie:visitorCookie(crypto.randomUUID())},'../check-claim'),env,{runResearch:async()=>{researchCalls++;return {usage:stubUsage,evidence:[],papers:[],steps:[]};}})
     ]);
     assert.deepEqual([chat.status,research.status].sort(),[200,429]);await Promise.all([chat.text(),research.text()]);assert.equal(chatCalls+researchCalls,1);assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM ai_runs').get().n,50);
     assert.equal((await readBudget(db,'next',NOW+86400000)).remainingLifetimeTokens,0);sqlite.close();
@@ -139,7 +141,7 @@ try {
     const {sqlite,db}=database(),env=envFor(db);
     const failure=await runSectionChat(request(payload()),env,{runSectionReply:async()=>{throw new Error('hidden credential diagnostic');}});const events=(await failure.text()).trim().split('\n').map(JSON.parse);
     assert.equal(events.at(-1).type,'error');assert.equal(events.at(-1).usage.unknownCalls,1);assert.ok(!JSON.stringify(events).includes('hidden credential'));
-    let sawAbort=false;const cancelled=await runSectionChat(request(payload(),{'oai-authenticated-user-id':'cancelled-author'}),env,{runSectionReply:({signal})=>new Promise((_,reject)=>signal.addEventListener('abort',()=>{sawAbort=true;reject(signal.reason);},{once:true}))});
+    let sawAbort=false;const cancelled=await runSectionChat(request(payload(),{cookie:visitorCookie(crypto.randomUUID())}),env,{runSectionReply:({signal})=>new Promise((_,reject)=>signal.addEventListener('abort',()=>{sawAbort=true;reject(signal.reason);},{once:true}))});
     const reader=cancelled.body.getReader();await reader.read();await reader.cancel();await new Promise(r=>setImmediate(r));assert.equal(sawAbort,true);
     const budget=await readBudget(db,'future',NOW);assert.equal(budget.lifetimeReservedTokens,80000);assert.equal(budget.lifetimeReservedUsd,.2);sqlite.close();
   }
