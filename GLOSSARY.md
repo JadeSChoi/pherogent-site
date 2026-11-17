@@ -43,3 +43,27 @@ _Avoid_: draft (the legacy term), document
 **Section**:
 One heading-and-text unit of the Manuscript: the unit of editing, size caps, and scoped checks (ADR 0004).
 _Avoid_: chapter, block
+
+**Review pass**:
+One author-led review of one Section's prepared sentences against saved sources. Stale once the Section's text changes; decisions never carry over to changed text.
+_Avoid_: evidence inbox (the legacy view name), review session
+
+**Prepared sentence**:
+A sentence selected from a Section by text splitting for evidence review. Preparation organizes text; it performs no scientific assessment.
+_Avoid_: claim (the legacy term), span
+
+**Assessment**:
+The author's own judgment of how a source relates to a prepared sentence: supports, needs narrower wording, conflicts, or cannot verify.
+_Avoid_: verdict (the legacy field name), label (reserved for AI suggestions)
+
+**Decision**:
+The author's explicit, recorded outcome for a prepared sentence — approve wording/citation, keep the original, or record a finding — always undoable. Nothing decides automatically.
+_Avoid_: resolution, approval (only one decision kind)
+
+**Quote match**:
+The code-only check that a passage the author pasted appears verbatim (whitespace aside) in a saved source's text. It checks text, not scientific support.
+_Avoid_: verification, evidence match
+
+**Keyword overlap**:
+A plain word-share check between the wording to approve and the pasted passage. Low overlap demands explicit author acknowledgment before approval; it is never a scientific judgment.
+_Avoid_: relevance score, similarity

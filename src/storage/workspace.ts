@@ -96,6 +96,78 @@ export function manuscriptLength(manuscript: Manuscript): number {
   );
 }
 
+/** The author's reading of one reviewed sentence against one source. */
+export type Assessment =
+  | "unreviewed"
+  | "supports"
+  | "partial"
+  | "conflicting"
+  | "unsupported";
+
+export const ASSESSMENTS: readonly Assessment[] = [
+  "unreviewed",
+  "supports",
+  "partial",
+  "conflicting",
+  "unsupported",
+];
+
+export type DecisionType = "approve" | "keep" | "flag";
+
+export const DECISION_TYPES: readonly DecisionType[] = ["approve", "keep", "flag"];
+
+/**
+ * The author's explicit, recorded decision on one reviewed sentence.
+ * Nothing writes one of these except an author action; nothing approves
+ * automatically.
+ */
+export type Decision = {
+  type: DecisionType;
+  /** The sentence wording before and after the decision. */
+  before: string;
+  after: string;
+  /** The approved citation; null when no citation was approved. */
+  paperId: string | null;
+  assessment: Assessment;
+  quote: string;
+  note: string;
+  at: string;
+  /** True when the author approved despite a low keyword overlap warning. */
+  lowOverlapAcknowledged: boolean;
+};
+
+/** One Manuscript sentence prepared for evidence review, with the author's
+ * working review state and, once made, their decision. */
+export type ReviewSentence = {
+  id: string;
+  /** Current wording; tracks the section text through applied revisions. */
+  text: string;
+  /** Offsets of the sentence within the section text. */
+  start: number;
+  end: number;
+  /** The saved source under inspection; null until the author picks one. */
+  paperId: string | null;
+  /** The passage the author pasted from the source. */
+  quote: string;
+  assessment: Assessment;
+  /** Proposed replacement wording, used when the assessment is partial. */
+  revision: string;
+  note: string;
+  decision: Decision | null;
+};
+
+/**
+ * One review pass over one Section (ADR 0004: sentence preparation is
+ * per-section). baseText is the section text the pass was prepared from;
+ * when the section text differs the pass is stale and every review action
+ * is blocked until the author prepares again.
+ */
+export type Review = {
+  sectionId: string;
+  baseText: string;
+  sentences: ReviewSentence[];
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -108,6 +180,8 @@ export type Project = {
   notebook?: Notebook;
   /** Absent on projects created before the Manuscript existed. */
   manuscript?: Manuscript;
+  /** The one evidence review pass; absent until sentences are prepared. */
+  review?: Review;
   /**
    * The untouched project payload from an imported legacy v2 backup
    * (draft, research, papers, logs). Preserved so later features can port

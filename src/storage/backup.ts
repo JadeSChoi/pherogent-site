@@ -1,13 +1,20 @@
 import type { Paper } from "../library/europePmc";
 import {
+  ASSESSMENTS,
+  DECISION_TYPES,
   READING_STATUSES,
   createSection,
   sectionsFromText,
   splitSection,
+  type Assessment,
+  type Decision,
+  type DecisionType,
   type Manuscript,
   type Notebook,
   type Project,
   type ReadingStatus,
+  type Review,
+  type ReviewSentence,
   type SavedSource,
   type Section,
   type Workspace,
@@ -109,6 +116,94 @@ function parseManuscript(x: unknown): Manuscript | null {
   return { title: str(x.title), sections: sectionsFromText(str(x.text)) };
 }
 
+const assessment = (x: unknown): Assessment =>
+  ASSESSMENTS.includes(x as Assessment) ? (x as Assessment) : "unreviewed";
+
+const nullableId = (x: unknown): string | null =>
+  typeof x === "string" && x ? x : null;
+
+function parseDecision(x: unknown): Decision | null {
+  if (!isRecord(x)) return null;
+  // A decision is the author's record; one with no recognizable type or
+  // wording is not reconstructible and must not resurface as approved.
+  if (
+    !DECISION_TYPES.includes(x.type as DecisionType) ||
+    typeof x.before !== "string" ||
+    typeof x.after !== "string"
+  ) {
+    return null;
+  }
+  return {
+    type: x.type as DecisionType,
+    before: x.before,
+    after: x.after,
+    paperId: nullableId(x.paperId),
+    assessment: assessment(x.assessment),
+    quote: str(x.quote),
+    note: str(x.note),
+    at: str(x.at),
+    lowOverlapAcknowledged: x.lowOverlapAcknowledged === true,
+  };
+}
+
+function parseReviewSentence(x: unknown): ReviewSentence | null {
+  if (!isRecord(x)) return null;
+  const { id, text, start, end } = x;
+  // The offsets anchor wording changes in the section text; a sentence
+  // whose anchors are unreadable cannot be safely acted on.
+  if (
+    typeof id !== "string" ||
+    !id ||
+    typeof text !== "string" ||
+    !Number.isInteger(start) ||
+    !Number.isInteger(end) ||
+    (start as number) < 0 ||
+    (end as number) < (start as number)
+  ) {
+    return null;
+  }
+  return {
+    id,
+    text,
+    start: start as number,
+    end: end as number,
+    paperId: nullableId(x.paperId),
+    quote: str(x.quote),
+    assessment: assessment(x.assessment),
+    revision: str(x.revision),
+    note: str(x.note),
+    decision: parseDecision(x.decision),
+  };
+}
+
+/** A review pass is re-derivable by preparing again, so an unreadable one
+ * is dropped as a whole rather than half-restored. */
+function parseReview(x: unknown): Review | null {
+  if (!isRecord(x)) return null;
+  if (typeof x.sectionId !== "string" || !x.sectionId) return null;
+  if (typeof x.baseText !== "string" || !Array.isArray(x.sentences)) return null;
+  const baseText = x.baseText;
+  const sentences = x.sentences.map(parseReviewSentence);
+  if (
+    sentences.some(
+      // Decisions splice section text at these offsets, so a sentence
+      // that is not baseText at its own offsets would corrupt the
+      // Manuscript if acted on.
+      (sentence) =>
+        sentence === null ||
+        sentence.end > baseText.length ||
+        baseText.slice(sentence.start, sentence.end) !== sentence.text,
+    )
+  ) {
+    return null;
+  }
+  return {
+    sectionId: x.sectionId,
+    baseText,
+    sentences: sentences as ReviewSentence[],
+  };
+}
+
 function parseProject(x: unknown): Project | null {
   if (!isRecord(x)) return null;
   const { id, name, question, createdAt } = x;
@@ -131,6 +226,8 @@ function parseProject(x: unknown): Project | null {
   if (notebook) project.notebook = notebook;
   const manuscript = parseManuscript(x.manuscript);
   if (manuscript) project.manuscript = manuscript;
+  const review = parseReview(x.review);
+  if (review) project.review = review;
   if ("legacy" in x) project.legacy = x.legacy;
   return project;
 }

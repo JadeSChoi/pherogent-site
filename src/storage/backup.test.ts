@@ -24,6 +24,92 @@ describe("importBackup", () => {
     expect(result).toEqual({ ok: true, workspace });
   });
 
+  it("round-trips a review pass with its sentences and decisions", () => {
+    const workspace = createWorkspace();
+    const project = workspace.projects[0];
+    const sectionId = project.manuscript!.sections[0].id;
+    project.manuscript!.sections[0].text =
+      "Reprogramming restored visual function in aged mice.";
+    project.review = {
+      sectionId,
+      baseText: "Reprogramming restored visual function in aged mice.",
+      sentences: [
+        {
+          id: "sentence-1",
+          text: "Reprogramming restored visual function in aged mice.",
+          start: 0,
+          end: 52,
+          paperId: "MED:1",
+          quote: "Visual function improved",
+          assessment: "supports",
+          revision: "",
+          note: "Mouse study.",
+          decision: {
+            type: "approve",
+            before: "Reprogramming restored visual function in aged mice.",
+            after: "Reprogramming restored visual function in aged mice.",
+            paperId: "MED:1",
+            assessment: "supports",
+            quote: "Visual function improved",
+            note: "Mouse study.",
+            at: "2026-11-17T00:00:00.000Z",
+            lowOverlapAcknowledged: false,
+          },
+        },
+      ],
+    };
+
+    const result = importBackup(exportBackup(workspace));
+
+    expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("drops an unreadable review without losing the project", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace)) as {
+      projects: Record<string, unknown>[];
+    };
+    raw.projects[0].review = { sectionId: 7, sentences: "not a list" };
+
+    const result = importBackup(JSON.stringify(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.workspace.projects[0].review).toBeUndefined();
+    expect(result.workspace.projects[0].id).toBe(workspace.projects[0].id);
+  });
+
+  it("drops a review whose sentence offsets do not anchor in its baseText", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace)) as {
+      projects: Record<string, unknown>[];
+    };
+    raw.projects[0].review = {
+      sectionId: "section-x",
+      baseText: "Short text.",
+      sentences: [
+        {
+          id: "sentence-1",
+          text: "A sentence that is not at these offsets.",
+          start: 0,
+          end: 40,
+          paperId: null,
+          quote: "",
+          assessment: "unreviewed",
+          revision: "",
+          note: "",
+          decision: null,
+        },
+      ],
+    };
+
+    const result = importBackup(JSON.stringify(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.workspace.projects[0].review).toBeUndefined();
+  });
+
   it("imports a v2 backup with its Projects intact, active project first", () => {
     const result = importBackup(text(v2MultiProject));
 
