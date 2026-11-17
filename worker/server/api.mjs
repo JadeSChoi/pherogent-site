@@ -45,8 +45,9 @@ const publicLimits = config => ({perRunUsd:config.limits.perRunUsd,dailyUsd:conf
   perRunTokens:config.limits.perRunTokens,lifetimeTokens:config.limits.lifetimeTokens,
   userRunsPerDay:config.limits.userRunsPerDay,maxSeconds:config.limits.maxSeconds,maxPapers:config.limits.maxPapers,
   maxQueries:config.limits.maxQueries,maxModelCalls:config.limits.maxModelCalls,pricesVerifiedOn:config.pricing.pricesVerifiedOn});
+const NOT_ENABLED = Object.freeze(['not_configured','The AI connection is not enabled. The prepared demo and manual search are available.']);
 function configurationProblem(env) {
-  if (!env?.OPENAI_API_KEY || env.PHEROGENT_AI_ENABLED !== 'true') return ['not_configured','The AI connection is not enabled. The prepared demo and manual search are available.'];
+  if (!env?.OPENAI_API_KEY || env.PHEROGENT_AI_ENABLED !== 'true') return NOT_ENABLED;
   if (!inspectApiCredential(env.OPENAI_API_KEY).diagnostics.headerValid) return ['invalid_credential_format','The saved API key contains an invalid header value, quotes, masking, or internal whitespace. The site owner must save the full secret key without those additions. No AI request was started.'];
   if (!env.DB?.prepare) return ['budget_unavailable','The spending ledger is unavailable. AI requests are disabled.'];
   return null;
@@ -149,9 +150,13 @@ async function runBounded(request, env, dependencies, kind) {
   if(!/^application\/json(?:;|$)/i.test(request.headers.get('content-type')||''))return errorResponse('invalid_content_type','Send JSON to start a check.',415);
   const config=resolveConfig(env);
   if(config.problem)return errorResponse(config.problem[0],config.problem[1],503);
-  const problem=configurationProblem(env);if(problem)return errorResponse(problem[0],problem[1],503);
+  // Only the kill switch outranks the access gate: the gate must be checked
+  // before the provider-key configuration so the owner can verify it live
+  // while no provider key exists yet.
+  if(env?.PHEROGENT_AI_ENABLED!=='true')return errorResponse(NOT_ENABLED[0],NOT_ENABLED[1],503);
   const current=identity(request,config);
   const access=accessProblem(config,current.signedIn);if(access)return errorResponse(access[0],access[1],401);
+  const problem=configurationProblem(env);if(problem)return errorResponse(problem[0],problem[1],503);
   const userId=current.id;if(!userId)return errorResponse('visitor_session_required','Refresh the AI connection and allow this site’s cookies before starting a check. No account is required.',400);
   const limits=config.limits,pricing=config.pricing;
   let input,reservation;

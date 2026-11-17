@@ -56,6 +56,29 @@ try {
   sqlite.close();
 }
 
+// The gate is verifiable live before any provider key exists: with AI enabled
+// and no OPENAI_API_KEY, an anonymous caller gets the 401 gate refusal, while
+// the authorized owner reaches the configuration refusal. Only the kill
+// switch outranks the gate.
+{
+  const {sqlite, db} = database();
+  const env = {...baseEnv(db), OPENAI_API_KEY:undefined};
+  let ran = 0;
+  const deps = {runResearch:async () => {ran++; return stubResult;}};
+  const gated = await runCheck(post('/api/check-claim', checkBody(), {cookie:cookie(uuid())}), env, deps);
+  assert.equal(gated.status, 401);
+  assert.equal((await gated.json()).error.code, 'owner_key_required');
+  const ownerNoProvider = await runCheck(post('/api/check-claim', checkBody(), ownerHeaders()), env, deps);
+  assert.equal(ownerNoProvider.status, 503);
+  assert.equal((await ownerNoProvider.json()).error.code, 'not_configured');
+  const killSwitch = await runCheck(post('/api/check-claim', checkBody(), {cookie:cookie(uuid())}), {...env, PHEROGENT_AI_ENABLED:'false'}, deps);
+  assert.equal(killSwitch.status, 503);
+  assert.equal((await killSwitch.json()).error.code, 'not_configured');
+  assert.equal(ran, 0);
+  assert.equal(rows(sqlite), 0);
+  sqlite.close();
+}
+
 // With the owner key the run succeeds against a provider faked at the adapter
 // interface; the route builds the provider from configuration (model ID), and
 // configured limits replace the source defaults without any code edit.

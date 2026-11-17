@@ -27,7 +27,7 @@ type AgentStatus = {
   };
 };
 
-describe("agent API on the deployed worker shape (AI disabled, no provider key)", () => {
+describe("agent API on the deployed worker shape (AI enabled, owner-gated, no provider key)", () => {
   it("GET /api/agent/status reports the real D1-backed budget and usage", async () => {
     const response = await SELF.fetch("https://example.com/api/agent/status");
 
@@ -61,7 +61,7 @@ describe("agent API on the deployed worker shape (AI disabled, no provider key)"
     });
   });
 
-  it("paid routes refuse cleanly before touching the ledger or a provider", async () => {
+  it("paid routes refuse at the owner gate before touching the ledger or a provider", async () => {
     const statusResponse = await SELF.fetch("https://example.com/api/agent/status");
     const cookie = statusResponse.headers.get("set-cookie")!.split(";")[0];
 
@@ -89,9 +89,12 @@ describe("agent API on the deployed worker shape (AI disabled, no provider key)"
         },
         body: JSON.stringify(body),
       });
-      expect(response.status).toBe(503);
+      // AI is enabled but the deployment is locked and the worker-pool env has
+      // no PHEROGENT_OWNER_KEY secret, so the gate fails closed before the
+      // missing-provider-key configuration check.
+      expect(response.status).toBe(401);
       const failure = (await response.json()) as { error: { code: string } };
-      expect(failure.error.code).toBe("not_configured");
+      expect(failure.error.code).toBe("owner_key_required");
     }
   });
 

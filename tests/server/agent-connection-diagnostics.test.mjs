@@ -40,7 +40,7 @@ try{
   const enabled=await (await getStatus(new Request('https://test.example/api/agent/status?connection_check=1'),{...env,PHEROGENT_AI_ENABLED:'true'},deps)).json();
   assert.equal(probes,1);assert.equal(enabled.connectionDiagnostic.category,'disabled_only');
   // Malformed headers are rejected before any ledger reservation or runner call.
-  const badEnv={PHEROGENT_AI_ENABLED:'true',OPENAI_API_KEY:'bad\nkey',DB:{prepare(){writes++;throw new Error('must not touch ledger');}}};
+  const badEnv={PHEROGENT_AI_ENABLED:'true',PHEROGENT_PUBLIC_ACCESS:'true',OPENAI_API_KEY:'bad\nkey',DB:{prepare(){writes++;throw new Error('must not touch ledger');}}};
   for(const chat of [true,false]){
     const request=new Request('https://test.example/api/'+(chat?'agent/chat':'check-claim'),{method:'POST',headers:{origin:'https://test.example','content-type':'application/json','oai-authenticated-user-id':'author'},body:JSON.stringify({requestId:crypto.randomUUID(),consent:true,...(chat?{stage:'methods',message:'test',context:''}:{question:'test'})})});
     const response=await (chat?runSectionChat:runCheck)(request,badEnv,{runSectionReply(){throw new Error('must not run');},runResearch(){throw new Error('must not run');}});

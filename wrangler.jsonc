@@ -18,7 +18,7 @@
   // worker/server/budget.mjs. PHEROGENT_PRICING.pricesVerifiedOn is the
   // display-only date the owner last verified the model prices.
   "vars": {
-    "PHEROGENT_AI_ENABLED": "false",
+    "PHEROGENT_AI_ENABLED": "true",
     "PHEROGENT_PUBLIC_ACCESS": "false",
     "PHEROGENT_MODEL": "gpt-5.6-terra",
     "PHEROGENT_PRICING": "{\"inputMicrosPerToken\":2,\"outputMicrosPerToken\":12,\"reservedInputMicrosPerToken\":2.5,\"pricesVerifiedOn\":\"2026-11-17\"}"
