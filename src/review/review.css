@@ -240,3 +240,10 @@
   max-height: 16rem;
   overflow-y: auto;
 }
+
+/* The owner-key unlock inside the consent dialog (issue #25). */
+.evidence-check-unlock {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}

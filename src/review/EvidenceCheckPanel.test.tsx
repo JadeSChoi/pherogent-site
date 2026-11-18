@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { clearOwnerKey, readOwnerKey } from "../api/ownerKey";
 import type { Paper } from "../library/europePmc";
 import { createProject, type Project } from "../storage/workspace";
 import { withReviewPrepared } from "./review";
@@ -132,8 +133,37 @@ const openPreview = async () => {
   return screen.findByRole("button", { name: "Consent and send" });
 };
 
+/** An owner-gated deployment: status reports signed in only for the right
+ * key's authorization header; no check POST is ever expected. */
+function stubGatedApi(rightKey: string) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) !== "/api/agent/status") {
+        throw new Error("No check may be sent while gated");
+      }
+      const auth = (init?.headers as Record<string, string> | undefined)?.authorization;
+      return new Response(
+        JSON.stringify(
+          auth === `Bearer ${rightKey}`
+            ? { canRun: true, message: "Open to the owner.", signedIn: true, needsSignIn: false }
+            : {
+                canRun: false,
+                message: "AI runs on this deployment require the owner access key.",
+                signedIn: false,
+                needsSignIn: true,
+              },
+        ),
+      );
+    }),
+  );
+}
+
 describe("EvidenceCheckPanel via ReviewMargin", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    clearOwnerKey();
+    vi.unstubAllGlobals();
+  });
 
   it("offers only server-resolvable saved sources for the check", () => {
     const { project, sentence } = fixture();
@@ -229,6 +259,60 @@ describe("EvidenceCheckPanel via ReviewMargin", () => {
     // The placeholder gives way to the recorded decision itself.
     expect(screen.queryByText(/No decision has been recorded/)).toBeNull();
     expect(latestProject.reviews![0].sentences[0].evidenceCheck?.cards).toHaveLength(1);
+  });
+
+  it("offers the key input only when gated, and a wrong key leaves it gated", async () => {
+    const { project, sentence } = fixture();
+    stubGatedApi("right-key-0000");
+    render(<Harness initial={project} sentenceId={sentence.id} />);
+    const consent = await openPreview();
+    await screen.findByText(/require the owner access key/);
+
+    const keyInput = screen.getByLabelText("Owner access key") as HTMLInputElement;
+    expect(keyInput.type).toBe("password");
+    expect(consent.hasAttribute("disabled")).toBe(true);
+
+    fireEvent.change(keyInput, { target: { value: "wrong-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "Unlock AI runs" }));
+
+    await screen.findByText(/was not accepted/);
+    expect(
+      screen
+        .getByRole("button", { name: "Consent and send" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(screen.getByLabelText("Owner access key")).toBeDefined();
+    // A rejected key is not kept for silent retries.
+    expect(readOwnerKey()).toBeNull();
+  });
+
+  it("unlocks with the right key and forgets it back to the gated state", async () => {
+    const { project, sentence } = fixture();
+    stubGatedApi("right-key-0000");
+    render(<Harness initial={project} sentenceId={sentence.id} />);
+    const consent = await openPreview();
+    await screen.findByText(/require the owner access key/);
+
+    fireEvent.change(screen.getByLabelText("Owner access key"), {
+      target: { value: "right-key-0000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Unlock AI runs" }));
+
+    await screen.findByText(/authorization header/);
+    expect(consent.hasAttribute("disabled")).toBe(false);
+    expect(screen.queryByLabelText("Owner access key")).toBeNull();
+    expect(readOwnerKey()).toBe("right-key-0000");
+
+    fireEvent.click(screen.getByRole("button", { name: "Forget owner key" }));
+
+    await screen.findByText(/require the owner access key/);
+    expect(readOwnerKey()).toBeNull();
+    expect(screen.getByLabelText("Owner access key")).toBeDefined();
+    expect(
+      screen
+        .getByRole("button", { name: "Consent and send" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
   });
 
   it("shows the server's error message when the run fails", async () => {

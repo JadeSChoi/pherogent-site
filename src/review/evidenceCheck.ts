@@ -17,6 +17,7 @@ import type {
   SavedSource,
 } from "../storage/workspace";
 import { AI_LABELS } from "../storage/workspace";
+import { apiFetch } from "../api/ownerKey";
 
 /** The server accepts at most three explicitly selected sources per check. */
 export const MAX_CHECK_SOURCES = 3;
@@ -96,29 +97,46 @@ export function outgoingBody(request: CheckRequest): string {
   return JSON.stringify(request, null, 2);
 }
 
-/** Whether this deployment will accept a run, with the server's message. */
-export type CheckAccess = { canRun: boolean; message: string };
+/** Whether this deployment will accept a run, with the server's message.
+ * needsSignIn means the owner access key is the one thing missing;
+ * signedIn means the saved key was accepted. */
+export type CheckAccess = {
+  canRun: boolean;
+  message: string;
+  needsSignIn: boolean;
+  signedIn: boolean;
+};
 
 /** Whether the deployment will accept a run right now, with the server's
  * own message. The status call also establishes the visitor session the
- * check route requires. */
+ * check route requires, and — through apiFetch — carries the saved owner
+ * key, so it doubles as the key's validity check. */
 export async function readCheckAccess({
-  fetchImpl = fetch,
+  fetchImpl = apiFetch,
 }: { fetchImpl?: typeof fetch } = {}): Promise<CheckAccess> {
   try {
     const response = await fetchImpl("/api/agent/status");
-    const status = (await response.json()) as { canRun?: boolean; message?: string };
+    const status = (await response.json()) as {
+      canRun?: boolean;
+      message?: string;
+      needsSignIn?: boolean;
+      signedIn?: boolean;
+    };
     return {
       canRun: status.canRun === true,
       message:
         typeof status.message === "string" && status.message
           ? status.message
           : "The AI connection did not report a status message.",
+      needsSignIn: status.needsSignIn === true,
+      signedIn: status.signedIn === true,
     };
   } catch {
     return {
       canRun: false,
       message: "The AI connection could not be reached. No request was sent.",
+      needsSignIn: false,
+      signedIn: false,
     };
   }
 }
@@ -160,7 +178,7 @@ function codedError(value: unknown, fallback: string): EvidenceCheckError {
  */
 export async function runEvidenceCheck(
   request: CheckRequest,
-  { fetchImpl = fetch, signal, onStep }: RunOptions = {},
+  { fetchImpl = apiFetch, signal, onStep }: RunOptions = {},
 ): Promise<{ runId: string | null; result: Record<string, unknown> }> {
   let response: Response;
   try {

@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Paper } from "../library/europePmc";
 import type { Project, ReviewSentence, SavedSource } from "../storage/workspace";
+import { clearOwnerKey, saveOwnerKey } from "../api/ownerKey";
 import {
   EvidenceCheckError,
   buildCheckRequest,
@@ -342,26 +343,99 @@ describe("evidenceCheckFromResult", () => {
 });
 
 describe("readCheckAccess", () => {
-  it("returns the server's run permission and message", async () => {
+  afterEach(() => {
+    clearOwnerKey();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the server's run permission, message, and sign-in state", async () => {
     const fetchImpl = vi.fn(
       async () =>
         new Response(
-          JSON.stringify({ canRun: false, reason: "owner_key_required", message: "Key required." }),
+          JSON.stringify({
+            canRun: false,
+            reason: "owner_key_required",
+            message: "Key required.",
+            needsSignIn: true,
+            signedIn: false,
+          }),
           { status: 200 },
         ),
     );
     const access = await readCheckAccess({ fetchImpl });
     expect(fetchImpl).toHaveBeenCalledWith("/api/agent/status");
-    expect(access).toEqual({ canRun: false, message: "Key required." });
+    expect(access).toEqual({
+      canRun: false,
+      message: "Key required.",
+      needsSignIn: true,
+      signedIn: false,
+    });
   });
 
-  it("reports an unreachable status endpoint as not runnable", async () => {
+  it("reports an unreachable status endpoint as not runnable and not gated open", async () => {
     const access = await readCheckAccess({
       fetchImpl: async () => {
         throw new TypeError("Failed to fetch");
       },
     });
     expect(access.canRun).toBe(false);
+    expect(access.needsSignIn).toBe(false);
     expect(access.message).toMatch(/reach/i);
+  });
+
+  it("sends the saved owner key through the shared helper by default", async () => {
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ canRun: true, message: "Open.", signedIn: true })),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    saveOwnerKey("owner-secret-fixture-0000");
+    await readCheckAccess();
+    expect(fetchSpy).toHaveBeenCalledWith("/api/agent/status", {
+      headers: { authorization: "Bearer owner-secret-fixture-0000" },
+    });
+  });
+});
+
+describe("the owner key and paid-route calls", () => {
+  const KEY = "owner-secret-fixture-0000";
+
+  afterEach(() => {
+    clearOwnerKey();
+    vi.unstubAllGlobals();
+  });
+
+  it("runEvidenceCheck sends the saved key through the shared helper by default", async () => {
+    const fetchSpy = vi.fn(
+      async (_input: RequestInfo | URL, _init?: RequestInit) =>
+        new Response('{"type":"start","runId":"run-1"}\n{"type":"result","result":{}}\n'),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+    saveOwnerKey(KEY);
+    await runEvidenceCheck(buildCheckRequest(sentence(), ["MED:1"]));
+    const [, init] = fetchSpy.mock.calls[0];
+    expect((init?.headers as Record<string, string>).authorization).toBe(`Bearer ${KEY}`);
+    // The key rides only in the header, never in the outgoing body.
+    expect(String(init?.body)).not.toContain(KEY);
+  });
+
+  it("never leaks the key into error text, on transport failure or a server error", async () => {
+    saveOwnerKey(KEY);
+    const request = buildCheckRequest(sentence(), ["MED:1"]);
+    const transport = await runEvidenceCheck(request, {
+      fetchImpl: async () => {
+        throw new TypeError("Failed to fetch " + KEY);
+      },
+    }).catch((error: Error) => error);
+    const refusal = await runEvidenceCheck(request, {
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ error: { code: "owner_key_required", message: "Key required." } }), {
+          status: 401,
+        }),
+    }).catch((error: Error) => error);
+    for (const error of [transport, refusal]) {
+      expect(error).toBeInstanceOf(EvidenceCheckError);
+      expect((error as Error).message).not.toContain(KEY);
+    }
   });
 });
