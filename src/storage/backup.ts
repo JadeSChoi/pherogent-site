@@ -215,6 +215,30 @@ function parseReview(x: unknown): Review | null {
   };
 }
 
+/**
+ * Per-Section passes (ADR 0006). A pre-ADR-0006 backup's single `review`
+ * imports as that Section's one pass, so no existing backup loses a
+ * decision. An unreadable pass is dropped alone — one Section's damage
+ * must not take other Sections' decisions down with it — and a duplicate
+ * sectionId keeps the first pass.
+ */
+function parseReviews(list: unknown, single: unknown): Review[] | null {
+  const entries = Array.isArray(list) ? list : single !== undefined ? [single] : [];
+  const passes: Review[] = [];
+  const sentenceIds = new Set<string>();
+  for (const entry of entries) {
+    const pass = parseReview(entry);
+    if (!pass || passes.some((p) => p.sectionId === pass.sectionId)) continue;
+    // Review actions address a sentence by id alone (ADR 0006), so a pass
+    // reusing another pass's sentence id would route decisions into the
+    // wrong Section; such a pass is dropped whole.
+    if (pass.sentences.some((sentence) => sentenceIds.has(sentence.id))) continue;
+    for (const sentence of pass.sentences) sentenceIds.add(sentence.id);
+    passes.push(pass);
+  }
+  return passes.length ? passes : null;
+}
+
 function parseProject(x: unknown): Project | null {
   if (!isRecord(x)) return null;
   const { id, name, question, createdAt } = x;
@@ -237,8 +261,8 @@ function parseProject(x: unknown): Project | null {
   if (notebook) project.notebook = notebook;
   const manuscript = parseManuscript(x.manuscript);
   if (manuscript) project.manuscript = manuscript;
-  const review = parseReview(x.review);
-  if (review) project.review = review;
+  const reviews = parseReviews(x.reviews, x.review);
+  if (reviews) project.reviews = reviews;
   if ("legacy" in x) project.legacy = x.legacy;
   return project;
 }

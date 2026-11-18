@@ -194,6 +194,47 @@ describe("ReviewPanel", () => {
     expect(screen.getByText(/re-read the surrounding wording/)).toBeTruthy();
   });
 
+  it("keeps each Section's pass and decisions when the author reviews another Section", () => {
+    const base = projectFixture("First sentence is long enough here.");
+    const withMethods: Project = {
+      ...base,
+      manuscript: {
+        ...base.manuscript!,
+        sections: [
+          ...base.manuscript!.sections,
+          {
+            id: "section-methods",
+            heading: "Methods",
+            text: "We measured axon density at four and eight weeks.",
+          },
+        ],
+      },
+    };
+    render(<Harness initial={withMethods} />);
+    prepare();
+    fireEvent.change(field("Source to check against"), { target: { value: "MED:1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
+    expect(screen.getByText("Original wording kept")).toBeTruthy();
+
+    // Review the Methods Section; the first Section's decision survives.
+    fireEvent.change(field("Section to review"), {
+      target: { value: "section-methods" },
+    });
+    prepare();
+    expect(
+      screen.getByRole("button", { name: /We measured axon density/ }),
+    ).toBeTruthy();
+    expect(screen.queryByText("Original wording kept")).toBeNull();
+
+    const sectionPicker = screen.getByLabelText(
+      "Section to review",
+    ) as HTMLSelectElement;
+    fireEvent.change(sectionPicker, {
+      target: { value: sectionPicker.options[0].value },
+    });
+    expect(screen.getByText("Original kept")).toBeTruthy();
+  });
+
   it("pauses the review when the section text changes elsewhere", () => {
     render(
       <Harness

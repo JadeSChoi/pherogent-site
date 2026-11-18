@@ -37,7 +37,7 @@ function reviewFixture(sectionText: string, abstract: string) {
     ],
   };
   const project = withReviewPrepared(withSource, sectionId).project;
-  return { project, sectionId, sentences: project.review!.sentences };
+  return { project, sectionId, sentences: project.reviews![0].sentences };
 }
 
 /** A project whose first manuscript section holds the given text. */
@@ -51,6 +51,77 @@ function projectWithSection(text: string): { project: Project; sectionId: string
   };
 }
 
+/** A project with two manuscript sections. */
+function projectWithSections(
+  first: string,
+  second: string,
+): { project: Project; firstId: string; secondId: string } {
+  const project = createProject("Vision recovery");
+  const manuscript = project.manuscript!;
+  const sections = [
+    { ...manuscript.sections[0], text: first },
+    { id: "section-second", heading: "Methods", text: second },
+  ];
+  return {
+    project: { ...project, manuscript: { ...manuscript, sections } },
+    firstId: sections[0].id,
+    secondId: sections[1].id,
+  };
+}
+
+describe("per-Section review passes", () => {
+  const FIRST = "Reprogramming restored visual function in aged mice.";
+  const SECOND = "We measured axon density at four and eight weeks.";
+
+  it("preparing one Section never discards another Section's pass or decisions", () => {
+    const { project, firstId, secondId } = projectWithSections(FIRST, SECOND);
+    const one = withReviewPrepared(project, firstId).project;
+    const decided = keepOriginal(one, one.reviews![0].sentences[0].id);
+    const both = withReviewPrepared(decided, secondId).project;
+    expect(both.reviews).toHaveLength(2);
+    const firstPass = both.reviews!.find((pass) => pass.sectionId === firstId)!;
+    expect(firstPass.sentences[0].decision?.type).toBe("keep");
+    const secondPass = both.reviews!.find((pass) => pass.sectionId === secondId)!;
+    expect(secondPass.sentences[0].text).toBe(SECOND);
+  });
+
+  it("editing one Section stales only its own pass; the other stays actionable", () => {
+    const { project, firstId, secondId } = projectWithSections(FIRST, SECOND);
+    let current = withReviewPrepared(project, firstId).project;
+    current = withReviewPrepared(current, secondId).project;
+    const secondSentence = current
+      .reviews!.find((pass) => pass.sectionId === secondId)!
+      .sentences[0];
+    const edited: Project = {
+      ...current,
+      manuscript: {
+        ...current.manuscript!,
+        sections: current.manuscript!.sections.map((section) =>
+          section.id === firstId ? { ...section, text: "Rewritten entirely." } : section,
+        ),
+      },
+    };
+    expect(isReviewStale(edited, firstId)).toBe(true);
+    expect(isReviewStale(edited, secondId)).toBe(false);
+    const decided = keepOriginal(edited, secondSentence.id);
+    const pass = decided.reviews!.find((p) => p.sectionId === secondId)!;
+    expect(pass.sentences[0].decision?.type).toBe("keep");
+    const undone = undoDecision(decided, secondSentence.id);
+    expect(
+      undone.reviews!.find((p) => p.sectionId === secondId)!.sentences[0].decision,
+    ).toBeNull();
+  });
+
+  it("re-preparing a Section replaces only that Section's pass", () => {
+    const { project, firstId, secondId } = projectWithSections(FIRST, SECOND);
+    let current = withReviewPrepared(project, firstId).project;
+    current = withReviewPrepared(current, secondId).project;
+    const again = withReviewPrepared(current, firstId).project;
+    expect(again.reviews).toHaveLength(2);
+    expect(again.reviews!.filter((pass) => pass.sectionId === firstId)).toHaveLength(1);
+  });
+});
+
 describe("withReviewPrepared", () => {
   it("splits a section into listed sentences, skipping heading lines and fragments", () => {
     const { project, sectionId } = projectWithSection(
@@ -59,8 +130,8 @@ describe("withReviewPrepared", () => {
     );
     const { project: prepared, outcome } = withReviewPrepared(project, sectionId);
     expect(outcome).toBe("prepared");
-    expect(prepared.review?.sectionId).toBe(sectionId);
-    expect(prepared.review?.sentences.map((sentence) => sentence.text)).toEqual([
+    expect(prepared.reviews?.[0].sectionId).toBe(sectionId);
+    expect(prepared.reviews?.[0].sentences.map((sentence) => sentence.text)).toEqual([
       "Reprogramming restored visual function in aged mice.",
       "The second cohort showed partial recovery of axon density.",
     ]);
@@ -71,7 +142,7 @@ describe("withReviewPrepared", () => {
       Array.from({ length: 7 }, (_, i) => `Sentence number ${i + 1} is long enough.`).join(" "),
     );
     const { project: prepared } = withReviewPrepared(project, sectionId);
-    expect(prepared.review?.sentences).toHaveLength(5);
+    expect(prepared.reviews?.[0].sentences).toHaveLength(5);
   });
 
   it("reports no_sentences for fragments only, leaving the project unchanged", () => {
@@ -86,8 +157,8 @@ describe("withReviewPrepared", () => {
       "Reprogramming restored visual function in aged mice. The second cohort showed partial recovery.",
     );
     const first = withReviewPrepared(project, sectionId).project;
-    const [staged, decided] = first.review!.sentences;
-    first.review!.sentences = [
+    const [staged, decided] = first.reviews![0].sentences;
+    first.reviews![0].sentences = [
       { ...staged, paperId: "MED:1", quote: "a pasted passage", assessment: "supports", note: "n" },
       {
         ...decided,
@@ -107,7 +178,7 @@ describe("withReviewPrepared", () => {
       },
     ];
     const again = withReviewPrepared(first, sectionId).project;
-    const [carried, kept] = again.review!.sentences;
+    const [carried, kept] = again.reviews![0].sentences;
     expect(carried.id).toBe(staged.id);
     expect(carried.paperId).toBe("MED:1");
     expect(carried.quote).toBe("a pasted passage");
@@ -122,8 +193,8 @@ describe("withReviewPrepared", () => {
       "Reprogramming restored visual function in aged mice.",
     );
     const first = withReviewPrepared(project, sectionId).project;
-    const sentence = first.review!.sentences[0];
-    first.review!.sentences = [
+    const sentence = first.reviews![0].sentences[0];
+    first.reviews![0].sentences = [
       {
         ...sentence,
         decision: {
@@ -152,8 +223,8 @@ describe("withReviewPrepared", () => {
       },
     };
     const again = withReviewPrepared(edited, sectionId).project;
-    expect(again.review!.sentences[0].decision).toBeNull();
-    expect(again.review!.sentences[0].id).not.toBe(sentence.id);
+    expect(again.reviews![0].sentences[0].decision).toBeNull();
+    expect(again.reviews![0].sentences[0].id).not.toBe(sentence.id);
   });
 
   it("walks the Section in batches: carried decisions plus the next five undecided", () => {
@@ -161,18 +232,18 @@ describe("withReviewPrepared", () => {
       Array.from({ length: 7 }, (_, i) => `Sentence number ${i + 1} is long enough.`).join(" "),
     );
     const first = withReviewPrepared(project, sectionId).project;
-    expect(first.review!.sentences).toHaveLength(5);
+    expect(first.reviews![0].sentences).toHaveLength(5);
 
     let decided = first;
-    for (const sentence of first.review!.sentences) {
+    for (const sentence of first.reviews![0].sentences) {
       decided = keepOriginal(decided, sentence.id);
     }
     const second = withReviewPrepared(decided, sectionId).project;
-    expect(second.review!.sentences).toHaveLength(7);
+    expect(second.reviews![0].sentences).toHaveLength(7);
     expect(
-      second.review!.sentences.map((sentence) => sentence.decision?.type ?? null),
+      second.reviews![0].sentences.map((sentence) => sentence.decision?.type ?? null),
     ).toEqual(["keep", "keep", "keep", "keep", "keep", null, null]);
-    expect(second.review!.sentences.map((sentence) => sentence.text)).toEqual(
+    expect(second.reviews![0].sentences.map((sentence) => sentence.text)).toEqual(
       Array.from({ length: 7 }, (_, i) => `Sentence number ${i + 1} is long enough.`),
     );
   });
@@ -188,13 +259,13 @@ describe("withSentencePatch and staleness", () => {
 
   it("records the author's working state on an undecided sentence", () => {
     const { project } = prepared();
-    const sentence = project.review!.sentences[0];
+    const sentence = project.reviews![0].sentences[0];
     const next = withSentencePatch(project, sentence.id, {
       paperId: "MED:1",
       quote: "visual function",
       assessment: "supports",
     });
-    expect(next.review!.sentences[0]).toMatchObject({
+    expect(next.reviews![0].sentences[0]).toMatchObject({
       paperId: "MED:1",
       quote: "visual function",
       assessment: "supports",
@@ -203,8 +274,8 @@ describe("withSentencePatch and staleness", () => {
 
   it("refuses updates on a decided sentence", () => {
     const { project } = prepared();
-    const sentence = project.review!.sentences[0];
-    project.review!.sentences[0] = {
+    const sentence = project.reviews![0].sentences[0];
+    project.reviews![0].sentences[0] = {
       ...sentence,
       decision: {
         type: "keep",
@@ -224,7 +295,7 @@ describe("withSentencePatch and staleness", () => {
 
   it("editing the section text makes the pass stale and blocks updates", () => {
     const { project, sectionId } = prepared();
-    expect(isReviewStale(project)).toBe(false);
+    expect(isReviewStale(project, sectionId)).toBe(false);
     const edited = {
       ...project,
       manuscript: {
@@ -234,8 +305,8 @@ describe("withSentencePatch and staleness", () => {
         ),
       },
     };
-    expect(isReviewStale(edited)).toBe(true);
-    const sentence = edited.review!.sentences[0];
+    expect(isReviewStale(edited, sectionId)).toBe(true);
+    const sentence = edited.reviews![0].sentences[0];
     expect(withSentencePatch(edited, sentence.id, { quote: "x" })).toBe(edited);
   });
 });
@@ -258,7 +329,7 @@ describe("recordDecision", () => {
     });
     const { project: decided, outcome } = recordDecision(staged, sentences[0].id);
     expect(outcome).toBe("approved");
-    const decision = decided.review!.sentences[0].decision!;
+    const decision = decided.reviews![0].sentences[0].decision!;
     expect(decision.type).toBe("approve");
     expect(decision.paperId).toBe("MED:1");
     expect(decision.before).toBe(decision.after);
@@ -306,8 +377,8 @@ describe("recordDecision", () => {
     expect(section.text).toBe(
       "Reprogramming improved visual function in aged mice. The effect size was small.",
     );
-    expect(isReviewStale(decided)).toBe(false);
-    const [first, second] = decided.review!.sentences;
+    expect(isReviewStale(decided, sectionId)).toBe(false);
+    const [first, second] = decided.reviews![0].sentences;
     expect(first.text).toBe("Reprogramming improved visual function in aged mice.");
     expect(first.decision!.before).toBe(
       "Reprogramming restored visual function in aged mice.",
@@ -332,7 +403,7 @@ describe("recordDecision", () => {
       acknowledgedLowOverlap: true,
     });
     expect(confirmed.outcome).toBe("approved");
-    expect(confirmed.project.review!.sentences[0].decision!.lowOverlapAcknowledged).toBe(
+    expect(confirmed.project.reviews![0].sentences[0].decision!.lowOverlapAcknowledged).toBe(
       true,
     );
   });
@@ -349,7 +420,7 @@ describe("recordDecision", () => {
     });
     const { project: decided, outcome } = recordDecision(staged, sentences[0].id);
     expect(outcome).toBe("finding_recorded");
-    const decision = decided.review!.sentences[0].decision!;
+    const decision = decided.reviews![0].sentences[0].decision!;
     expect(decision.type).toBe("flag");
     expect(decision.paperId).toBeNull();
     expect(decided.manuscript!.sections.find((s) => s.id === sectionId)!.text).toBe(
@@ -365,7 +436,7 @@ describe("keepOriginal", () => {
       "Unrelated abstract.",
     );
     const kept = keepOriginal(project, sentences[0].id);
-    const decision = kept.review!.sentences[0].decision!;
+    const decision = kept.reviews![0].sentences[0].decision!;
     expect(decision.type).toBe("keep");
     expect(decision.paperId).toBeNull();
     expect(decision.before).toBe(decision.after);
@@ -389,13 +460,13 @@ describe("undoDecision", () => {
     const undone = undoDecision(decided, sentences[0].id);
     const section = undone.manuscript!.sections.find((s) => s.id === sectionId)!;
     expect(section.text).toBe(TEXT);
-    const [first, second] = undone.review!.sentences;
+    const [first, second] = undone.reviews![0].sentences;
     expect(first.decision).toBeNull();
     expect(first.text).toBe("Reprogramming restored visual function in aged mice.");
     expect(first.assessment).toBe("partial");
     expect(first.quote).toBe("Visual function improved in aged mice");
     expect(section.text.slice(second.start, second.end)).toBe(second.text);
-    expect(isReviewStale(undone)).toBe(false);
+    expect(isReviewStale(undone, sectionId)).toBe(false);
   });
 
   it("does nothing without a decision", () => {
@@ -423,25 +494,25 @@ describe("context-changed note", () => {
     const decided = keepOriginal(project, sentences[1].id);
     const edited = withAppended(decided, " A third sentence appears afterwards.");
     const second = withReviewPrepared(edited, sectionId).project;
-    const carried = second.review!.sentences[1];
+    const carried = second.reviews![0].sentences[1];
     expect(carried.decision?.type).toBe("keep");
     expect(carried.contextChanged).toBe(true);
-    expect(second.review!.sentences[0].contextChanged).toBe(false);
+    expect(second.reviews![0].sentences[0].contextChanged).toBe(false);
 
     const third = withReviewPrepared(second, sectionId).project;
-    expect(third.review!.sentences[1].contextChanged).toBe(true);
+    expect(third.reviews![0].sentences[1].contextChanged).toBe(true);
 
     const undone = undoDecision(third, carried.id);
-    expect(undone.review!.sentences[1].contextChanged).toBe(false);
-    expect(undone.review!.sentences[1].decision).toBeNull();
+    expect(undone.reviews![0].sentences[1].contextChanged).toBe(false);
+    expect(undone.reviews![0].sentences[1].decision).toBeNull();
   });
 
   it("leaves the note off when the neighbors read the same", () => {
     const { project, sectionId, sentences } = reviewFixture(TEXT, "Unrelated.");
     const decided = keepOriginal(project, sentences[0].id);
     const again = withReviewPrepared(decided, sectionId).project;
-    expect(again.review!.sentences[0].decision?.type).toBe("keep");
-    expect(again.review!.sentences[0].contextChanged).toBe(false);
+    expect(again.reviews![0].sentences[0].decision?.type).toBe("keep");
+    expect(again.reviews![0].sentences[0].contextChanged).toBe(false);
   });
 
   it("does not flag batch boundaries: a neighbor beyond the cap is not a change", () => {
@@ -450,12 +521,12 @@ describe("context-changed note", () => {
     );
     const first = withReviewPrepared(project, sectionId).project;
     let decided = first;
-    for (const sentence of first.review!.sentences) {
+    for (const sentence of first.reviews![0].sentences) {
       decided = keepOriginal(decided, sentence.id);
     }
     const second = withReviewPrepared(decided, sectionId).project;
     expect(
-      second.review!.sentences.map((sentence) => sentence.contextChanged),
+      second.reviews![0].sentences.map((sentence) => sentence.contextChanged),
     ).toEqual([false, false, false, false, false, false, false]);
   });
 
@@ -471,11 +542,11 @@ describe("context-changed note", () => {
       revision: "Second sentence reads differently now.",
     });
     current = recordDecision(current, second.id, { acknowledgedLowOverlap: true }).project;
-    expect(current.review!.sentences[1].decision?.type).toBe("approve");
-    expect(current.review!.sentences[0].contextChanged).toBe(true);
+    expect(current.reviews![0].sentences[1].decision?.type).toBe("approve");
+    expect(current.reviews![0].sentences[0].contextChanged).toBe(true);
 
     const undone = undoDecision(current, second.id);
-    expect(undone.review!.sentences[0].contextChanged).toBe(false);
+    expect(undone.reviews![0].sentences[0].contextChanged).toBe(false);
   });
 });
 

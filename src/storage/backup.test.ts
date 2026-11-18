@@ -24,13 +24,13 @@ describe("importBackup", () => {
     expect(result).toEqual({ ok: true, workspace });
   });
 
-  it("round-trips a review pass with its sentences and decisions", () => {
+  it("round-trips review passes with their sentences and decisions", () => {
     const workspace = createWorkspace();
     const project = workspace.projects[0];
     const sectionId = project.manuscript!.sections[0].id;
     project.manuscript!.sections[0].text =
       "Reprogramming restored visual function in aged mice.";
-    project.review = {
+    project.reviews = [{
       sectionId,
       baseText: "Reprogramming restored visual function in aged mice.",
       sentences: [
@@ -59,11 +59,75 @@ describe("importBackup", () => {
           contextChanged: true,
         },
       ],
-    };
+    }];
 
     const result = importBackup(exportBackup(workspace));
 
     expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("imports a pre-ADR-0006 single review as that Section's one pass", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace)) as {
+      projects: Record<string, unknown>[];
+    };
+    raw.projects[0].review = {
+      sectionId: "section-old",
+      baseText: "A sentence prepared before per-Section passes.",
+      sentences: [
+        {
+          id: "sentence-old",
+          text: "A sentence prepared before per-Section passes.",
+          start: 0,
+          end: 46,
+          paperId: null,
+          quote: "",
+          assessment: "unreviewed",
+          revision: "",
+          note: "",
+          decision: null,
+        },
+      ],
+    };
+
+    const result = importBackup(JSON.stringify(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const reviews = result.workspace.projects[0].reviews!;
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0].sectionId).toBe("section-old");
+    expect(reviews[0].sentences[0].id).toBe("sentence-old");
+  });
+
+  it("drops a pass that reuses another pass's sentence id", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace)) as {
+      projects: Record<string, unknown>[];
+    };
+    const sentence = {
+      id: "sentence-shared",
+      text: "A sentence long enough to anchor.",
+      start: 0,
+      end: 33,
+      paperId: null,
+      quote: "",
+      assessment: "unreviewed",
+      revision: "",
+      note: "",
+      decision: null,
+    };
+    raw.projects[0].reviews = [
+      { sectionId: "section-a", baseText: sentence.text, sentences: [sentence] },
+      { sectionId: "section-b", baseText: sentence.text, sentences: [sentence] },
+    ];
+
+    const result = importBackup(JSON.stringify(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const reviews = result.workspace.projects[0].reviews!;
+    expect(reviews.map((pass) => pass.sectionId)).toEqual(["section-a"]);
   });
 
   it("drops an unreadable review without losing the project", () => {
@@ -77,7 +141,7 @@ describe("importBackup", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.workspace.projects[0].review).toBeUndefined();
+    expect(result.workspace.projects[0].reviews).toBeUndefined();
     expect(result.workspace.projects[0].id).toBe(workspace.projects[0].id);
   });
 
@@ -109,7 +173,7 @@ describe("importBackup", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.workspace.projects[0].review).toBeUndefined();
+    expect(result.workspace.projects[0].reviews).toBeUndefined();
   });
 
   it("imports a v2 backup with its Projects intact, active project first", () => {

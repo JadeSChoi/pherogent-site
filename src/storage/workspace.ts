@@ -188,9 +188,11 @@ export type ReviewSentence = {
 
 /**
  * One review pass over one Section (ADR 0004: sentence preparation is
- * per-section). baseText is the section text the pass was prepared from;
- * when the section text differs the pass is stale and every review action
- * is blocked until the author prepares again.
+ * per-section; ADR 0006: each Section keeps its own pass). baseText is
+ * the section text the pass was prepared from; when that section's text
+ * differs the pass is stale and every action on it is blocked until the
+ * author prepares that Section again — other Sections' passes are
+ * untouched.
  */
 export type Review = {
   sectionId: string;
@@ -210,8 +212,9 @@ export type Project = {
   notebook?: Notebook;
   /** Absent on projects created before the Manuscript existed. */
   manuscript?: Manuscript;
-  /** The one evidence review pass; absent until sentences are prepared. */
-  review?: Review;
+  /** The evidence review passes, at most one per Section (ADR 0006);
+   * absent until sentences are first prepared. */
+  reviews?: Review[];
   /**
    * The untouched project payload from an imported legacy v2 backup
    * (draft, research, papers, logs). Preserved so later features can port

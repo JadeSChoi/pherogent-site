@@ -101,20 +101,57 @@ function splitSentences(text: string): { text: string; start: number; end: numbe
   return sentences;
 }
 
-/** The Section the review pass was prepared from, if it still exists. */
-function reviewSection(project: Project) {
+/** The pass prepared for one Section, if any (ADR 0006: at most one). */
+export function reviewFor(project: Project, sectionId: string): Review | undefined {
+  return project.reviews?.find((pass) => pass.sectionId === sectionId);
+}
+
+/** The pass holding one sentence; sentence ids are unique across passes. */
+function passWithSentence(project: Project, sentenceId: string): Review | undefined {
+  return project.reviews?.find((pass) =>
+    pass.sentences.some((sentence) => sentence.id === sentenceId),
+  );
+}
+
+/** A sentence and its owning pass, addressed by sentence id alone. */
+function sentenceLookup(
+  project: Project,
+  sentenceId: string,
+): { pass: Review; sentence: ReviewSentence } | undefined {
+  const pass = passWithSentence(project, sentenceId);
+  const sentence = pass?.sentences.find((s) => s.id === sentenceId);
+  return pass && sentence ? { pass, sentence } : undefined;
+}
+
+function sectionOf(project: Project, pass: Review) {
   const manuscript = project.manuscript ?? defaultManuscript(project);
-  return manuscript.sections.find((section) => section.id === project.review?.sectionId);
+  return manuscript.sections.find((section) => section.id === pass.sectionId);
 }
 
 /**
- * A pass is stale once the section text no longer matches what it was
- * prepared from. A stale pass blocks every review action: previous
- * decisions and working state never apply automatically to changed text.
+ * A pass is stale once its own Section's text no longer matches what it
+ * was prepared from. A stale pass blocks every action on that pass —
+ * decisions and working state never apply automatically to changed text —
+ * while other Sections' passes stay untouched (ADR 0006).
  */
-export function isReviewStale(project: Project): boolean {
-  if (!project.review) return false;
-  return reviewSection(project)?.text !== project.review.baseText;
+function isPassStale(project: Project, pass: Review): boolean {
+  return sectionOf(project, pass)?.text !== pass.baseText;
+}
+
+/** Whether the pass prepared for this Section (if any) is stale. */
+export function isReviewStale(project: Project, sectionId: string): boolean {
+  const pass = reviewFor(project, sectionId);
+  return !!pass && isPassStale(project, pass);
+}
+
+/** Replaces one Section's pass in the project's reviews. */
+function withPassReplaced(project: Project, pass: Review): Project {
+  return {
+    ...project,
+    reviews: (project.reviews ?? []).map((candidate) =>
+      candidate.sectionId === pass.sectionId ? pass : candidate,
+    ),
+  };
 }
 
 export type SentencePatch = Partial<
@@ -127,19 +164,16 @@ export function withSentencePatch(
   sentenceId: string,
   patch: SentencePatch,
 ): Project {
-  const review = project.review;
-  if (!review || isReviewStale(project)) return project;
-  const sentence = review.sentences.find((candidate) => candidate.id === sentenceId);
-  if (!sentence || sentence.decision) return project;
-  return {
-    ...project,
-    review: {
-      ...review,
-      sentences: review.sentences.map((candidate) =>
-        candidate.id === sentenceId ? { ...candidate, ...patch } : candidate,
-      ),
-    },
-  };
+  const found = sentenceLookup(project, sentenceId);
+  if (!found || isPassStale(project, found.pass)) return project;
+  const { pass, sentence } = found;
+  if (sentence.decision) return project;
+  return withPassReplaced(project, {
+    ...pass,
+    sentences: pass.sentences.map((candidate) =>
+      candidate.id === sentenceId ? { ...candidate, ...patch } : candidate,
+    ),
+  });
 }
 
 /** The wording a decision would approve: the revision when a partial
@@ -164,7 +198,8 @@ export function sourceTextFor(project: Project, paperId: string | null): string 
  * only; the decision itself is always a separate, explicit action.
  */
 export function canDecide(project: Project, sentence: ReviewSentence): boolean {
-  if (sentence.decision || isReviewStale(project)) return false;
+  const pass = passWithSentence(project, sentence.id);
+  if (!pass || sentence.decision || isPassStale(project, pass)) return false;
   if (sentence.assessment === "unreviewed") return false;
   if (!sentence.paperId || !project.sources?.some((s) => s.paper.id === sentence.paperId)) {
     return false;
@@ -228,19 +263,19 @@ function withContextNotesRefreshed(
  */
 function withWordingReplaced(
   project: Project,
+  pass: Review,
   target: ReviewSentence,
   nextText: string,
   decision: Decision | null,
 ): Project {
-  const review = project.review!;
   const changed = nextText !== target.text;
   const delta = nextText.length - (target.end - target.start);
   const manuscript = project.manuscript ?? defaultManuscript(project);
-  const section = manuscript.sections.find((s) => s.id === review.sectionId)!;
+  const section = manuscript.sections.find((s) => s.id === pass.sectionId)!;
   const text = changed
     ? section.text.slice(0, target.start) + nextText + section.text.slice(target.end)
     : section.text;
-  const sentences = review.sentences.map((sentence) => {
+  const sentences = pass.sentences.map((sentence) => {
     if (sentence.id === target.id) {
       return {
         ...sentence,
@@ -258,17 +293,16 @@ function withWordingReplaced(
     return sentence;
   });
   return {
-    ...project,
+    ...withPassReplaced(project, {
+      ...pass,
+      baseText: text,
+      sentences: changed ? withContextNotesRefreshed(sentences, text, target.id) : sentences,
+    }),
     manuscript: {
       ...manuscript,
       sections: manuscript.sections.map((s) =>
         s.id === section.id ? { ...s, text } : s,
       ),
-    },
-    review: {
-      ...review,
-      baseText: text,
-      sentences: changed ? withContextNotesRefreshed(sentences, text, target.id) : sentences,
     },
   };
 }
@@ -276,12 +310,11 @@ function withWordingReplaced(
 /** Records the author's decision, applying its wording to the section. */
 function withDecision(
   project: Project,
+  pass: Review,
   target: ReviewSentence,
   outcome: Pick<Decision, "type" | "after" | "paperId" | "lowOverlapAcknowledged">,
 ): Project {
-  const review = project.review!;
-  const manuscript = project.manuscript ?? defaultManuscript(project);
-  const section = manuscript.sections.find((s) => s.id === review.sectionId)!;
+  const section = sectionOf(project, pass)!;
   const decision: Decision = {
     ...outcome,
     before: target.text,
@@ -294,7 +327,7 @@ function withDecision(
     // decision only changes its own sentence, never its neighbors.
     neighbors: documentNeighbors(section.text, target.start),
   };
-  return withWordingReplaced(project, target, decision.after, decision);
+  return withWordingReplaced(project, pass, target, decision.after, decision);
 }
 
 export type DecisionOutcome =
@@ -315,13 +348,14 @@ export function recordDecision(
   sentenceId: string,
   options: { acknowledgedLowOverlap?: boolean } = {},
 ): { project: Project; outcome: DecisionOutcome } {
-  const sentence = project.review?.sentences.find((s) => s.id === sentenceId);
-  if (!sentence || !canDecide(project, sentence)) {
+  const found = sentenceLookup(project, sentenceId);
+  if (!found || !canDecide(project, found.sentence)) {
     return { project, outcome: "blocked" };
   }
+  const { pass, sentence } = found;
   if (sentence.assessment === "conflicting" || sentence.assessment === "unsupported") {
     return {
-      project: withDecision(project, sentence, {
+      project: withDecision(project, pass, sentence, {
         type: "flag",
         after: sentence.text,
         paperId: null,
@@ -336,7 +370,7 @@ export function recordDecision(
     return { project, outcome: "needs_acknowledgment" };
   }
   return {
-    project: withDecision(project, sentence, {
+    project: withDecision(project, pass, sentence, {
       type: "approve",
       after,
       paperId: sentence.paperId,
@@ -348,9 +382,12 @@ export function recordDecision(
 
 /** Keeps the original wording; the evidence concern stays unresolved. */
 export function keepOriginal(project: Project, sentenceId: string): Project {
-  const sentence = project.review?.sentences.find((s) => s.id === sentenceId);
-  if (!sentence || sentence.decision || isReviewStale(project)) return project;
-  return withDecision(project, sentence, {
+  const found = sentenceLookup(project, sentenceId);
+  if (!found || found.sentence.decision || isPassStale(project, found.pass)) {
+    return project;
+  }
+  const { pass, sentence } = found;
+  return withDecision(project, pass, sentence, {
     type: "keep",
     after: sentence.text,
     paperId: null,
@@ -363,10 +400,10 @@ export function keepOriginal(project: Project, sentenceId: string): Project {
  * text and the sentence reopens with its working review state intact.
  */
 export function undoDecision(project: Project, sentenceId: string): Project {
-  const sentence = project.review?.sentences.find((s) => s.id === sentenceId);
-  const decision = sentence?.decision;
-  if (!sentence || !decision || isReviewStale(project)) return project;
-  return withWordingReplaced(project, sentence, decision.before, null);
+  const found = sentenceLookup(project, sentenceId);
+  const decision = found?.sentence.decision;
+  if (!found || !decision || isPassStale(project, found.pass)) return project;
+  return withWordingReplaced(project, found.pass, found.sentence, decision.before, null);
 }
 
 export type PrepareOutcome = "prepared" | "no_sentences" | "no_section";
@@ -394,7 +431,7 @@ export function withReviewPrepared(
   if (!section) return { project, outcome: "no_section" };
   const found = splitSentences(section.text);
   if (!found.length) return { project, outcome: "no_sentences" };
-  const previous = project.review?.sectionId === sectionId ? project.review.sentences : [];
+  const previous = reviewFor(project, sectionId)?.sentences ?? [];
   const foundCounts = countByText(found.map((candidate) => candidate.text));
   const previousCounts = countByText(previous.map((sentence) => sentence.text));
   const sentences: ReviewSentence[] = [];
@@ -437,6 +474,11 @@ export function withReviewPrepared(
         : false,
     });
   }
-  const review: Review = { sectionId, baseText: section.text, sentences };
-  return { project: { ...project, review }, outcome: "prepared" };
+  const pass: Review = { sectionId, baseText: section.text, sentences };
+  // Only this Section's pass is replaced; every other Section keeps its
+  // pass and decisions untouched (ADR 0006).
+  const others = (project.reviews ?? []).filter(
+    (candidate) => candidate.sectionId !== sectionId,
+  );
+  return { project: { ...project, reviews: [...others, pass] }, outcome: "prepared" };
 }

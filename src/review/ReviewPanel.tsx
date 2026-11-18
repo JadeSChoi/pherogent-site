@@ -14,6 +14,7 @@ import {
   keywordOverlap,
   quoteMatches,
   recordDecision,
+  reviewFor,
   sourceTextFor,
   undoDecision,
   withReviewPrepared,
@@ -123,8 +124,14 @@ export function ReviewPanel({ project, onProjectChange }: ReviewPanelProps) {
   const [notice, setNotice] = useState<string>();
 
   const sections = (project.manuscript ?? defaultManuscript(project)).sections;
-  const review = project.review;
-  const stale = isReviewStale(project);
+  // The picker leads: the panel shows the chosen Section's own pass
+  // (ADR 0006), defaulting to the first Section that has one.
+  const chosenSection =
+    sections.find((section) => section.id === sectionChoice) ??
+    sections.find((section) => reviewFor(project, section.id)) ??
+    sections[0];
+  const review = reviewFor(project, chosenSection.id);
+  const stale = isReviewStale(project, chosenSection.id);
   const sentences = review?.sentences ?? [];
   const selected =
     sentences.find((sentence) => sentence.id === selectedId) ??
@@ -132,15 +139,11 @@ export function ReviewPanel({ project, onProjectChange }: ReviewPanelProps) {
     sentences[0];
   const sources = project.sources ?? [];
 
-  const chosenSection =
-    sections.find((section) => section.id === (sectionChoice ?? review?.sectionId)) ??
-    sections[0];
-
   const prepare = () => {
     const { project: next, outcome } = withReviewPrepared(project, chosenSection.id);
     if (outcome === "prepared") {
       onProjectChange(next);
-      setSelectedId(next.review!.sentences[0].id);
+      setSelectedId(reviewFor(next, chosenSection.id)!.sentences[0].id);
       setNotice(undefined);
     } else {
       setNotice(
