@@ -1,0 +1,36 @@
+{
+  // The Playwright-only Worker configuration: identical to wrangler.jsonc
+  // except that the entry wraps the app with an injected fake AI provider
+  // and fake Europe PMC transport (e2e/worker.e2e.mjs), access is flipped
+  // to the public demo so no owner key is needed, and the spend limits are
+  // raised so repeated local e2e runs never exhaust the durable ledger.
+  // Never deploy from this file; deploys read wrangler.jsonc via the build.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pherogent",
+  "main": "e2e/worker.e2e.mjs",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "PHEROGENT_AI_ENABLED": "true",
+    "PHEROGENT_PUBLIC_ACCESS": "true",
+    "PHEROGENT_MODEL": "gpt-5.6-terra",
+    "PHEROGENT_PRICING": "{\"inputMicrosPerToken\":2,\"outputMicrosPerToken\":12,\"reservedInputMicrosPerToken\":2.5,\"pricesVerifiedOn\":\"2026-11-17\"}",
+    "PHEROGENT_LIMITS": "{\"dailyMicros\":1000000000,\"lifetimeMicros\":1000000000,\"lifetimeTokens\":1000000000,\"userRunsPerDay\":1000,\"userCooldownMs\":0}",
+    // A fixture credential so the configuration checks pass; the injected
+    // fake provider means no request can ever reach a real provider.
+    "OPENAI_API_KEY": "sk-e2e-fixture-never-sent-anywhere"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pherogent",
+      // The same local database id as wrangler.jsonc so `npm run db:migrate`
+      // (which test:e2e runs first) migrates the state this server reads.
+      "database_id": "2bf2b6be-707e-474f-a112-b3f8073618dc",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

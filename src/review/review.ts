@@ -9,6 +9,7 @@
 import {
   defaultManuscript,
   type Decision,
+  type EvidenceCheck,
   type NeighborTexts,
   type Project,
   type Review,
@@ -172,6 +173,29 @@ export function withSentencePatch(
     ...pass,
     sentences: pass.sentences.map((candidate) =>
       candidate.id === sentenceId ? { ...candidate, ...patch } : candidate,
+    ),
+  });
+}
+
+/**
+ * Records a completed, consented AI Evidence check on one undecided
+ * sentence of a current pass, replacing any earlier run. The check is the
+ * AI-suggestion and code-check records only; it never touches the author's
+ * working state or decision.
+ */
+export function withEvidenceCheckRecorded(
+  project: Project,
+  sentenceId: string,
+  check: EvidenceCheck,
+): Project {
+  const found = sentenceLookup(project, sentenceId);
+  if (!found || isPassStale(project, found.pass)) return project;
+  const { pass, sentence } = found;
+  if (sentence.decision) return project;
+  return withPassReplaced(project, {
+    ...pass,
+    sentences: pass.sentences.map((candidate) =>
+      candidate.id === sentenceId ? { ...candidate, evidenceCheck: check } : candidate,
     ),
   });
 }
@@ -460,6 +484,7 @@ export function withReviewPrepared(
       assessment: prior?.assessment ?? "unreviewed",
       revision: prior?.revision ?? "",
       note: prior?.note ?? "",
+      evidenceCheck: prior?.evidenceCheck ?? null,
       decision,
       // The note compares today's document neighbors against the ones
       // snapshotted when the decision was made (ADR 0005); a legacy

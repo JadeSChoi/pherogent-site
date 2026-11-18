@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createProject, type Project } from "../storage/workspace";
+import { createProject, type EvidenceCheck, type Project } from "../storage/workspace";
 import type { Paper } from "../library/europePmc";
 import {
   isReviewStale,
@@ -8,9 +8,40 @@ import {
   quoteMatches,
   recordDecision,
   undoDecision,
+  withEvidenceCheckRecorded,
   withReviewPrepared,
   withSentencePatch,
 } from "./review";
+
+/** A completed Evidence check run as stored on a sentence. */
+const evidenceCheck = (sentenceText: string): EvidenceCheck => ({
+  at: "2026-11-18T00:00:00Z",
+  runId: "run-1",
+  sentenceText,
+  citedPaperIds: ["MED:1"],
+  cards: [
+    {
+      paperId: "MED:1",
+      suggestion: {
+        label: "partial",
+        suggestedWording: "Visual function improved in aged mice.",
+        reason: "The outcome is narrower than the sentence.",
+        mismatchNotes: ["Mouse evidence cannot establish a human outcome."],
+        studyType: "Animal experiment",
+        population: "Mice",
+      },
+      check: {
+        quoteVerified: true,
+        quote: "Visual function improved in aged mice.",
+        location: "Abstract (excerpt)",
+        coverage: "Abstract excerpt only; full-text methods and results were not checked.",
+        designAdjusted: false,
+      },
+    },
+  ],
+  unavailablePaperIds: [],
+  notes: ["Only the selected cited sources were checked."],
+});
 
 const paper = (id: string, abstract: string): Paper => ({
   id,
@@ -246,6 +277,100 @@ describe("withReviewPrepared", () => {
     expect(second.reviews![0].sentences.map((sentence) => sentence.text)).toEqual(
       Array.from({ length: 7 }, (_, i) => `Sentence number ${i + 1} is long enough.`),
     );
+  });
+});
+
+describe("withEvidenceCheckRecorded", () => {
+  const prepared = () => {
+    const { project, sectionId } = projectWithSection(
+      "Reprogramming restored visual function in aged mice.",
+    );
+    const next = withReviewPrepared(project, sectionId).project;
+    return { project: next, sectionId, sentence: next.reviews![0].sentences[0] };
+  };
+
+  it("attaches the check to an undecided sentence of a current pass", () => {
+    const { project, sentence } = prepared();
+    const check = evidenceCheck(sentence.text);
+    const next = withEvidenceCheckRecorded(project, sentence.id, check);
+    expect(next.reviews![0].sentences[0].evidenceCheck).toEqual(check);
+  });
+
+  it("replaces an earlier check on the same sentence", () => {
+    const { project, sentence } = prepared();
+    const first = withEvidenceCheckRecorded(project, sentence.id, {
+      ...evidenceCheck(sentence.text),
+      runId: "run-old",
+    });
+    const next = withEvidenceCheckRecorded(
+      first,
+      sentence.id,
+      evidenceCheck(sentence.text),
+    );
+    expect(next.reviews![0].sentences[0].evidenceCheck?.runId).toBe("run-1");
+  });
+
+  it("refuses to attach to a decided sentence", () => {
+    const { project, sentence } = prepared();
+    const decided = keepOriginal(project, sentence.id);
+    const next = withEvidenceCheckRecorded(
+      decided,
+      sentence.id,
+      evidenceCheck(sentence.text),
+    );
+    expect(next).toBe(decided);
+  });
+
+  it("refuses to attach to a stale pass", () => {
+    const { project, sectionId, sentence } = prepared();
+    const edited: Project = {
+      ...project,
+      manuscript: {
+        ...project.manuscript!,
+        sections: project.manuscript!.sections.map((s) =>
+          s.id === sectionId ? { ...s, text: "Changed text entirely now." } : s,
+        ),
+      },
+    };
+    const next = withEvidenceCheckRecorded(
+      edited,
+      sentence.id,
+      evidenceCheck(sentence.text),
+    );
+    expect(next).toBe(edited);
+  });
+
+  it("carries the check across re-preparation for a byte-identical sentence", () => {
+    const { project, sectionId, sentence } = prepared();
+    const checked = withEvidenceCheckRecorded(
+      project,
+      sentence.id,
+      evidenceCheck(sentence.text),
+    );
+    const again = withReviewPrepared(checked, sectionId).project;
+    expect(again.reviews![0].sentences[0].evidenceCheck?.runId).toBe("run-1");
+  });
+
+  it("drops the check when the sentence's own text changed", () => {
+    const { project, sectionId, sentence } = prepared();
+    const checked = withEvidenceCheckRecorded(
+      project,
+      sentence.id,
+      evidenceCheck(sentence.text),
+    );
+    const edited: Project = {
+      ...checked,
+      manuscript: {
+        ...checked.manuscript!,
+        sections: checked.manuscript!.sections.map((s) =>
+          s.id === sectionId
+            ? { ...s, text: "Reprogramming restored some visual function in aged mice." }
+            : s,
+        ),
+      },
+    };
+    const again = withReviewPrepared(edited, sectionId).project;
+    expect(again.reviews![0].sentences[0].evidenceCheck).toBeNull();
   });
 });
 

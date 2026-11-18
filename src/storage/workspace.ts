@@ -160,6 +160,73 @@ export type Decision = {
   neighbors: NeighborTexts | null;
 };
 
+/** The model's label for one sentence against one source. An unverified
+ * suggestion, never a decision (see AVOID: verdict). */
+export type AiLabel = "supports" | "partial" | "unsupported" | "contradicts";
+
+export const AI_LABELS: readonly AiLabel[] = [
+  "supports",
+  "partial",
+  "unsupported",
+  "contradicts",
+];
+
+/**
+ * Record one of three in an Evidence check: the AI's unverified reading of
+ * the sentence against one source. Waiting on the author; approves nothing.
+ */
+export type AiSuggestion = {
+  label: AiLabel;
+  /** A narrower rewrite the model proposed; null when it proposed none. */
+  suggestedWording: string | null;
+  reason: string;
+  mismatchNotes: string[];
+  studyType: string;
+  population: string;
+};
+
+/**
+ * Record two of three in an Evidence check: what the server's code verified
+ * about the suggestion. Text checks only, no scientific judgment.
+ */
+export type CodeCheck = {
+  /** The server matched the quote verbatim in text it fetched itself. */
+  quoteVerified: boolean;
+  quote: string;
+  /** Where in the source the quoted passage sits (e.g. abstract excerpt). */
+  location: string;
+  /** How much of the source the check could read. */
+  coverage: string;
+  /** True when the study-design rule overrode the model's label. */
+  designAdjusted: boolean;
+};
+
+/** One source's pair of records within an Evidence check run. */
+export type EvidenceCheckCard = {
+  paperId: string;
+  suggestion: AiSuggestion;
+  check: CodeCheck;
+};
+
+/**
+ * One consented AI Evidence check run on one prepared sentence: the AI
+ * suggestion and code check records per source. The author's decision — the
+ * third record — stays separate on the sentence; nothing here decides.
+ */
+export type EvidenceCheck = {
+  at: string;
+  runId: string | null;
+  /** The exact sentence text that was sent and checked. */
+  sentenceText: string;
+  /** The saved sources the author explicitly selected and consented to send. */
+  citedPaperIds: string[];
+  cards: EvidenceCheckCard[];
+  /** Requested sources the server could not retrieve; none were substituted. */
+  unavailablePaperIds: string[];
+  /** The run's uncertainty notes, including discarded-card warnings. */
+  notes: string[];
+};
+
 /** One Manuscript sentence prepared for evidence review, with the author's
  * working review state and, once made, their decision. */
 export type ReviewSentence = {
@@ -177,6 +244,8 @@ export type ReviewSentence = {
   /** Proposed replacement wording, used when the assessment is partial. */
   revision: string;
   note: string;
+  /** The latest consented AI Evidence check run on this sentence, if any. */
+  evidenceCheck: EvidenceCheck | null;
   decision: Decision | null;
   /**
    * True when a neighboring sentence's text changed after this sentence's

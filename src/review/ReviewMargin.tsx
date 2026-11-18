@@ -19,6 +19,7 @@ import {
   undoDecision,
   withSentencePatch,
 } from "./review";
+import { EvidenceCheckPanel, EvidenceCheckRecords } from "./EvidenceCheckPanel";
 import "./review.css";
 
 type ReviewMarginProps = {
@@ -90,6 +91,12 @@ function DecisionNote({
   const copy = DECISION_COPY[decision.type];
   return (
     <div className={`review-decision review-decision-${copy.state}`} role="status">
+      {/* The decided sentence's AI and code records stay beside the author
+          record, so the check's three records remain distinct (issue #10). */}
+      {sentence.evidenceCheck && (
+        <EvidenceCheckRecords check={sentence.evidenceCheck} decided />
+      )}
+      <p className="evidence-record-kicker">Author decision</p>
       <p className="review-decision-heading">{copy.heading}</p>
       <p className="review-decision-detail">
         {copy.detail(decision.before !== decision.after)}
@@ -342,6 +349,14 @@ function SentenceEditor({
           />
         </>
       )}
+      {/* The consented AI Evidence check (issue #10): suggestions arrive as
+          records beside the author's own flow and never decide anything. */}
+      <EvidenceCheckPanel
+        project={project}
+        sentence={sentence}
+        onProjectChange={onProjectChange}
+        onUseWording={(wording, paperId) => patch({ revision: wording, paperId })}
+      />
       {/* Keeping the original needs no source (owner decision on #21);
           the assessment-based decision still requires one. */}
       <div className="review-actions">

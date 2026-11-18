@@ -56,6 +56,34 @@ describe("importBackup", () => {
             lowOverlapAcknowledged: false,
             neighbors: { previous: null, next: "A following sentence." },
           },
+          evidenceCheck: {
+            at: "2026-11-18T00:00:00.000Z",
+            runId: "run-1",
+            sentenceText: "Reprogramming restored visual function in aged mice.",
+            citedPaperIds: ["MED:1"],
+            cards: [
+              {
+                paperId: "MED:1",
+                suggestion: {
+                  label: "partial",
+                  suggestedWording: "Visual function improved in aged mice.",
+                  reason: "The outcome is narrower than the sentence.",
+                  mismatchNotes: ["Mouse evidence cannot establish a human outcome."],
+                  studyType: "Animal experiment",
+                  population: "Mice",
+                },
+                check: {
+                  quoteVerified: true,
+                  quote: "Visual function improved",
+                  location: "Abstract (excerpt)",
+                  coverage: "Abstract excerpt only.",
+                  designAdjusted: false,
+                },
+              },
+            ],
+            unavailablePaperIds: ["PMC:PMC999"],
+            notes: ["Only the selected cited sources were checked."],
+          },
           contextChanged: true,
         },
       ],
@@ -64,6 +92,103 @@ describe("importBackup", () => {
     const result = importBackup(exportBackup(workspace));
 
     expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("restores an unreadable Evidence check as null without losing the sentence", () => {
+    const workspace = createWorkspace();
+    const project = workspace.projects[0];
+    const sectionId = project.manuscript!.sections[0].id;
+    project.manuscript!.sections[0].text = "A sentence long enough to anchor.";
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].reviews = [
+      {
+        sectionId,
+        baseText: "A sentence long enough to anchor.",
+        sentences: [
+          {
+            id: "sentence-1",
+            text: "A sentence long enough to anchor.",
+            start: 0,
+            end: 33,
+            paperId: null,
+            quote: "",
+            assessment: "unreviewed",
+            revision: "",
+            note: "",
+            evidenceCheck: { cards: "not-an-array" },
+            decision: null,
+            contextChanged: false,
+          },
+        ],
+      },
+    ];
+    const result = importBackup(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const sentence = result.workspace.projects[0].reviews![0].sentences[0];
+    expect(sentence.id).toBe("sentence-1");
+    expect(sentence.evidenceCheck).toBeNull();
+  });
+
+  it("drops an Evidence check card with an unrecognizable label", () => {
+    const workspace = createWorkspace();
+    const project = workspace.projects[0];
+    const sectionId = project.manuscript!.sections[0].id;
+    project.manuscript!.sections[0].text = "A sentence long enough to anchor.";
+    const raw = JSON.parse(exportBackup(workspace));
+    const card = (label: string) => ({
+      paperId: "MED:1",
+      suggestion: {
+        label,
+        suggestedWording: null,
+        reason: "r",
+        mismatchNotes: [],
+        studyType: "s",
+        population: "p",
+      },
+      check: {
+        quoteVerified: true,
+        quote: "q",
+        location: "l",
+        coverage: "c",
+        designAdjusted: false,
+      },
+    });
+    raw.projects[0].reviews = [
+      {
+        sectionId,
+        baseText: "A sentence long enough to anchor.",
+        sentences: [
+          {
+            id: "sentence-1",
+            text: "A sentence long enough to anchor.",
+            start: 0,
+            end: 33,
+            paperId: null,
+            quote: "",
+            assessment: "unreviewed",
+            revision: "",
+            note: "",
+            evidenceCheck: {
+              at: "2026-11-18T00:00:00.000Z",
+              runId: null,
+              sentenceText: "A sentence long enough to anchor.",
+              citedPaperIds: ["MED:1"],
+              cards: [card("decides-for-you"), card("partial")],
+              unavailablePaperIds: [],
+              notes: [],
+            },
+            decision: null,
+            contextChanged: false,
+          },
+        ],
+      },
+    ];
+    const result = importBackup(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const check = result.workspace.projects[0].reviews![0].sentences[0].evidenceCheck;
+    expect(check?.cards.map((c) => c.suggestion.label)).toEqual(["partial"]);
   });
 
   it("imports a pre-ADR-0006 single review as that Section's one pass", () => {

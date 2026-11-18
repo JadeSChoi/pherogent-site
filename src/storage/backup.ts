@@ -1,14 +1,18 @@
 import type { Paper } from "../library/europePmc";
 import {
+  AI_LABELS,
   ASSESSMENTS,
   DECISION_TYPES,
   READING_STATUSES,
   createSection,
   sectionsFromText,
   splitSection,
+  type AiLabel,
   type Assessment,
   type Decision,
   type DecisionType,
+  type EvidenceCheck,
+  type EvidenceCheckCard,
   type Manuscript,
   type NeighborTexts,
   type Notebook,
@@ -156,6 +160,57 @@ function parseNeighbors(x: unknown): NeighborTexts | null {
   };
 }
 
+const strings = (x: unknown): string[] =>
+  Array.isArray(x) ? x.filter((item): item is string => typeof item === "string") : [];
+
+/** A card with no recognizable label or source is not reconstructible as a
+ * suggestion and is dropped alone. */
+function parseEvidenceCheckCard(x: unknown): EvidenceCheckCard | null {
+  if (!isRecord(x) || typeof x.paperId !== "string" || !x.paperId) return null;
+  const suggestion = x.suggestion;
+  const check = x.check;
+  if (!isRecord(suggestion) || !isRecord(check)) return null;
+  if (!AI_LABELS.includes(suggestion.label as AiLabel)) return null;
+  return {
+    paperId: x.paperId,
+    suggestion: {
+      label: suggestion.label as AiLabel,
+      suggestedWording:
+        typeof suggestion.suggestedWording === "string" && suggestion.suggestedWording
+          ? suggestion.suggestedWording
+          : null,
+      reason: str(suggestion.reason),
+      mismatchNotes: strings(suggestion.mismatchNotes),
+      studyType: str(suggestion.studyType),
+      population: str(suggestion.population),
+    },
+    check: {
+      quoteVerified: check.quoteVerified === true,
+      quote: str(check.quote),
+      location: str(check.location),
+      coverage: str(check.coverage),
+      designAdjusted: check.designAdjusted === true,
+    },
+  };
+}
+
+/** An Evidence check is re-runnable with fresh consent, so an unreadable one
+ * restores as null rather than taking the sentence down with it. */
+function parseEvidenceCheck(x: unknown): EvidenceCheck | null {
+  if (!isRecord(x) || !Array.isArray(x.cards)) return null;
+  return {
+    at: str(x.at),
+    runId: typeof x.runId === "string" && x.runId ? x.runId : null,
+    sentenceText: str(x.sentenceText),
+    citedPaperIds: strings(x.citedPaperIds),
+    cards: x.cards
+      .map(parseEvidenceCheckCard)
+      .filter((card): card is EvidenceCheckCard => card !== null),
+    unavailablePaperIds: strings(x.unavailablePaperIds),
+    notes: strings(x.notes),
+  };
+}
+
 function parseReviewSentence(x: unknown): ReviewSentence | null {
   if (!isRecord(x)) return null;
   const { id, text, start, end } = x;
@@ -182,6 +237,7 @@ function parseReviewSentence(x: unknown): ReviewSentence | null {
     assessment: assessment(x.assessment),
     revision: str(x.revision),
     note: str(x.note),
+    evidenceCheck: parseEvidenceCheck(x.evidenceCheck),
     decision: parseDecision(x.decision),
     contextChanged: x.contextChanged === true,
   };
