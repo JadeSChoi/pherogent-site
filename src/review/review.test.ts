@@ -81,14 +81,14 @@ describe("withReviewPrepared", () => {
     expect(result.project).toBe(project);
   });
 
-  it("carries an unchanged sentence's working state across re-preparation, but never a decision", () => {
+  it("carries working state and decisions across re-preparation for byte-identical sentences", () => {
     const { project, sectionId } = projectWithSection(
       "Reprogramming restored visual function in aged mice. The second cohort showed partial recovery.",
     );
     const first = withReviewPrepared(project, sectionId).project;
-    const [kept, decided] = first.review!.sentences;
+    const [staged, decided] = first.review!.sentences;
     first.review!.sentences = [
-      { ...kept, paperId: "MED:1", quote: "a pasted passage", assessment: "supports", note: "n" },
+      { ...staged, paperId: "MED:1", quote: "a pasted passage", assessment: "supports", note: "n" },
       {
         ...decided,
         assessment: "conflicting",
@@ -102,18 +102,79 @@ describe("withReviewPrepared", () => {
           note: "",
           at: "2026-11-17T00:00:00Z",
           lowOverlapAcknowledged: false,
+          neighbors: null,
         },
       },
     ];
     const again = withReviewPrepared(first, sectionId).project;
-    const [carried, reset] = again.review!.sentences;
-    expect(carried.id).toBe(kept.id);
+    const [carried, kept] = again.review!.sentences;
+    expect(carried.id).toBe(staged.id);
     expect(carried.paperId).toBe("MED:1");
     expect(carried.quote).toBe("a pasted passage");
     expect(carried.assessment).toBe("supports");
-    expect(reset.id).toBe(decided.id);
-    expect(reset.decision).toBeNull();
-    expect(reset.assessment).toBe("unreviewed");
+    expect(kept.id).toBe(decided.id);
+    expect(kept.decision?.type).toBe("flag");
+    expect(kept.assessment).toBe("conflicting");
+  });
+
+  it("resets a decision when the sentence's own text changed", () => {
+    const { project, sectionId } = projectWithSection(
+      "Reprogramming restored visual function in aged mice.",
+    );
+    const first = withReviewPrepared(project, sectionId).project;
+    const sentence = first.review!.sentences[0];
+    first.review!.sentences = [
+      {
+        ...sentence,
+        decision: {
+          type: "keep",
+          before: sentence.text,
+          after: sentence.text,
+          paperId: null,
+          assessment: "unreviewed",
+          quote: "",
+          note: "",
+          at: "2026-11-17T00:00:00Z",
+          lowOverlapAcknowledged: false,
+          neighbors: null,
+        },
+      },
+    ];
+    const edited = {
+      ...first,
+      manuscript: {
+        ...first.manuscript!,
+        sections: first.manuscript!.sections.map((s) =>
+          s.id === sectionId
+            ? { ...s, text: "Reprogramming restored some visual function in aged mice." }
+            : s,
+        ),
+      },
+    };
+    const again = withReviewPrepared(edited, sectionId).project;
+    expect(again.review!.sentences[0].decision).toBeNull();
+    expect(again.review!.sentences[0].id).not.toBe(sentence.id);
+  });
+
+  it("walks the Section in batches: carried decisions plus the next five undecided", () => {
+    const { project, sectionId } = projectWithSection(
+      Array.from({ length: 7 }, (_, i) => `Sentence number ${i + 1} is long enough.`).join(" "),
+    );
+    const first = withReviewPrepared(project, sectionId).project;
+    expect(first.review!.sentences).toHaveLength(5);
+
+    let decided = first;
+    for (const sentence of first.review!.sentences) {
+      decided = keepOriginal(decided, sentence.id);
+    }
+    const second = withReviewPrepared(decided, sectionId).project;
+    expect(second.review!.sentences).toHaveLength(7);
+    expect(
+      second.review!.sentences.map((sentence) => sentence.decision?.type ?? null),
+    ).toEqual(["keep", "keep", "keep", "keep", "keep", null, null]);
+    expect(second.review!.sentences.map((sentence) => sentence.text)).toEqual(
+      Array.from({ length: 7 }, (_, i) => `Sentence number ${i + 1} is long enough.`),
+    );
   });
 });
 
@@ -155,6 +216,7 @@ describe("withSentencePatch and staleness", () => {
         note: "",
         at: "2026-11-17T00:00:00Z",
         lowOverlapAcknowledged: false,
+        neighbors: null,
       },
     };
     expect(withSentencePatch(project, sentence.id, { quote: "changed" })).toBe(project);
@@ -339,6 +401,81 @@ describe("undoDecision", () => {
   it("does nothing without a decision", () => {
     const { project, sentences } = reviewFixture(TEXT, ABSTRACT);
     expect(undoDecision(project, sentences[0].id)).toBe(project);
+  });
+});
+
+describe("context-changed note", () => {
+  const TEXT = "First sentence is long enough here. Second sentence is also long enough.";
+
+  const withAppended = (project: Project, addition: string): Project => ({
+    ...project,
+    manuscript: {
+      ...project.manuscript!,
+      sections: project.manuscript!.sections.map((section) => ({
+        ...section,
+        text: section.text + addition,
+      })),
+    },
+  });
+
+  it("flags a carried decision whose neighbor changed, stays sticky, and clears on undo", () => {
+    const { project, sectionId, sentences } = reviewFixture(TEXT, "Unrelated.");
+    const decided = keepOriginal(project, sentences[1].id);
+    const edited = withAppended(decided, " A third sentence appears afterwards.");
+    const second = withReviewPrepared(edited, sectionId).project;
+    const carried = second.review!.sentences[1];
+    expect(carried.decision?.type).toBe("keep");
+    expect(carried.contextChanged).toBe(true);
+    expect(second.review!.sentences[0].contextChanged).toBe(false);
+
+    const third = withReviewPrepared(second, sectionId).project;
+    expect(third.review!.sentences[1].contextChanged).toBe(true);
+
+    const undone = undoDecision(third, carried.id);
+    expect(undone.review!.sentences[1].contextChanged).toBe(false);
+    expect(undone.review!.sentences[1].decision).toBeNull();
+  });
+
+  it("leaves the note off when the neighbors read the same", () => {
+    const { project, sectionId, sentences } = reviewFixture(TEXT, "Unrelated.");
+    const decided = keepOriginal(project, sentences[0].id);
+    const again = withReviewPrepared(decided, sectionId).project;
+    expect(again.review!.sentences[0].decision?.type).toBe("keep");
+    expect(again.review!.sentences[0].contextChanged).toBe(false);
+  });
+
+  it("does not flag batch boundaries: a neighbor beyond the cap is not a change", () => {
+    const { project, sectionId } = projectWithSection(
+      Array.from({ length: 7 }, (_, i) => `Sentence number ${i + 1} is long enough.`).join(" "),
+    );
+    const first = withReviewPrepared(project, sectionId).project;
+    let decided = first;
+    for (const sentence of first.review!.sentences) {
+      decided = keepOriginal(decided, sentence.id);
+    }
+    const second = withReviewPrepared(decided, sectionId).project;
+    expect(
+      second.review!.sentences.map((sentence) => sentence.contextChanged),
+    ).toEqual([false, false, false, false, false, false, false]);
+  });
+
+  it("flags an in-pass neighbor revision immediately, and clears when it is undone", () => {
+    const abstract = "It was also long enough for mice.";
+    const { project, sentences } = reviewFixture(TEXT, abstract);
+    const [first, second] = sentences;
+    let current = keepOriginal(project, first.id);
+    current = withSentencePatch(current, second.id, {
+      paperId: "MED:1",
+      quote: "also long enough",
+      assessment: "partial",
+      revision: "Second sentence reads differently now.",
+    });
+    current = recordDecision(current, second.id, { acknowledgedLowOverlap: true }).project;
+    expect(current.review!.sentences[1].decision?.type).toBe("approve");
+    expect(current.review!.sentences[0].contextChanged).toBe(true);
+
+    const undone = undoDecision(current, second.id);
+    expect(undone.review!.sentences[0].contextChanged).toBe(false);
   });
 });
 

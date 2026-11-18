@@ -180,6 +180,20 @@
   font-size: var(--text-base);
 }
 
+/* The context-changed note is a quiet prompt to re-read, not an evidence
+   state, so it stays in muted ink rather than a state color. */
+.review-context-flag {
+  color: var(--color-mute);
+  font-style: italic;
+}
+
+.review-context-note {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-mute);
+}
+
 .review-ack {
   display: grid;
   gap: var(--space-3);

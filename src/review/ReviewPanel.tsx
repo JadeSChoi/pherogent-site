@@ -105,6 +105,12 @@ function DecisionRecord({
         {decision.lowOverlapAcknowledged &&
           " You acknowledged a low keyword overlap warning."}
       </p>
+      {sentence.contextChanged && (
+        <p className="review-context-note">
+          Context changed since this decision — re-read the surrounding
+          wording before relying on it. Nothing is reset.
+        </p>
+      )}
       <Button onClick={onUndo}>Undo decision</Button>
     </div>
   );
@@ -197,8 +203,10 @@ export function ReviewPanel({ project, onProjectChange }: ReviewPanelProps) {
           Prepare sentences for review
         </Button>
         <p className="review-prepare-note">
-          Splits the section into up to {REVIEW_SENTENCE_LIMIT} sentences by
-          text alone. No scientific assessment is performed.
+          Splits the section by text alone and opens up to{" "}
+          {REVIEW_SENTENCE_LIMIT} undecided sentences per pass; decisions on
+          unchanged sentences carry over. Prepare again to continue through
+          the section. No scientific assessment is performed.
         </p>
       </div>
       {notice && (
@@ -233,6 +241,11 @@ export function ReviewPanel({ project, onProjectChange }: ReviewPanelProps) {
                   <span className={`review-note review-note-${note.state}`}>
                     {note.text}
                   </span>
+                  {sentence.contextChanged && (
+                    <span className="review-note review-context-flag">
+                      Context changed
+                    </span>
+                  )}
                 </li>
               );
             })}

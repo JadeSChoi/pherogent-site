@@ -9,13 +9,16 @@
 import {
   defaultManuscript,
   type Decision,
+  type NeighborTexts,
   type Project,
   type Review,
   type ReviewSentence,
 } from "../storage/workspace";
 
-/** One pass reviews at most this many sentences: a bound on the pass, not
- * on the document (ADR 0004 forbids small document-level limits). */
+/** One pass opens at most this many undecided sentences: a bound on the
+ * pass, not on the document (ADR 0004 forbids small document-level
+ * limits). Carried decided sentences ride along for free, so repeated
+ * preparation walks the whole Section in batches (ADR 0005). */
 export const REVIEW_SENTENCE_LIMIT = 5;
 
 /** Fragments shorter than this are not reviewable sentences. */
@@ -93,7 +96,6 @@ function splitSentences(text: string): { text: string; start: number; end: numbe
       if (trimmed.length < MIN_SENTENCE_LENGTH) continue;
       const start = line.index + part.index + part.segment.indexOf(trimmed);
       sentences.push({ text: trimmed, start, end: start + trimmed.length });
-      if (sentences.length === REVIEW_SENTENCE_LIMIT) return sentences;
     }
   }
   return sentences;
@@ -176,6 +178,48 @@ export function canDecide(project: Project, sentence: ReviewSentence): boolean {
   return true;
 }
 
+const neighborsAt = (
+  split: { text: string; start: number }[],
+  start: number,
+): NeighborTexts | null => {
+  const at = split.findIndex((sentence) => sentence.start === start);
+  if (at === -1) return null;
+  return { previous: split[at - 1]?.text ?? null, next: split[at + 1]?.text ?? null };
+};
+
+/** The document neighbors of the sentence starting at `start`. */
+const documentNeighbors = (sectionText: string, start: number): NeighborTexts | null =>
+  neighborsAt(splitSentences(sectionText), start);
+
+const neighborsDiffer = (
+  baseline: NeighborTexts,
+  current: NeighborTexts | null,
+): boolean =>
+  current !== null &&
+  (baseline.previous !== current.previous || baseline.next !== current.next);
+
+/**
+ * Re-evaluates the context-changed note for every decided sentence
+ * against its decision-time neighbor snapshot (ADR 0005), so an in-pass
+ * wording change — or its undo — moves the note immediately. A decision
+ * without a snapshot keeps its stored flag.
+ */
+function withContextNotesRefreshed(
+  sentences: ReviewSentence[],
+  sectionText: string,
+  exceptId: string,
+): ReviewSentence[] {
+  const split = splitSentences(sectionText);
+  return sentences.map((sentence) => {
+    const baseline = sentence.decision?.neighbors;
+    if (sentence.id === exceptId || !baseline) return sentence;
+    return {
+      ...sentence,
+      contextChanged: neighborsDiffer(baseline, neighborsAt(split, sentence.start)),
+    };
+  });
+}
+
 /**
  * Replaces one sentence's wording in the section text and the review pass
  * together: the section is spliced at the sentence's offsets, later
@@ -198,7 +242,15 @@ function withWordingReplaced(
     : section.text;
   const sentences = review.sentences.map((sentence) => {
     if (sentence.id === target.id) {
-      return { ...sentence, text: nextText, end: target.start + nextText.length, decision };
+      return {
+        ...sentence,
+        text: nextText,
+        end: target.start + nextText.length,
+        decision,
+        // Deciding or undoing happens with the current context in view,
+        // so either clears the context-changed note (ADR 0005).
+        contextChanged: false,
+      };
     }
     if (changed && sentence.start >= target.end) {
       return { ...sentence, start: sentence.start + delta, end: sentence.end + delta };
@@ -213,7 +265,11 @@ function withWordingReplaced(
         s.id === section.id ? { ...s, text } : s,
       ),
     },
-    review: { ...review, baseText: text, sentences },
+    review: {
+      ...review,
+      baseText: text,
+      sentences: changed ? withContextNotesRefreshed(sentences, text, target.id) : sentences,
+    },
   };
 }
 
@@ -223,6 +279,9 @@ function withDecision(
   target: ReviewSentence,
   outcome: Pick<Decision, "type" | "after" | "paperId" | "lowOverlapAcknowledged">,
 ): Project {
+  const review = project.review!;
+  const manuscript = project.manuscript ?? defaultManuscript(project);
+  const section = manuscript.sections.find((s) => s.id === review.sectionId)!;
   const decision: Decision = {
     ...outcome,
     before: target.text,
@@ -230,6 +289,10 @@ function withDecision(
     quote: target.quote,
     note: target.note,
     at: new Date().toISOString(),
+    // The context the author decided in: the baseline the context-changed
+    // note compares against (ADR 0005). Captured before any splice; a
+    // decision only changes its own sentence, never its neighbors.
+    neighbors: documentNeighbors(section.text, target.start),
   };
   return withWordingReplaced(project, target, decision.after, decision);
 }
@@ -308,9 +371,19 @@ export function undoDecision(project: Project, sentenceId: string): Project {
 
 export type PrepareOutcome = "prepared" | "no_sentences" | "no_section";
 
+const countByText = (texts: string[]): Map<string, number> => {
+  const counts = new Map<string, number>();
+  for (const text of texts) counts.set(text, (counts.get(text) ?? 0) + 1);
+  return counts;
+};
+
 /**
- * Prepares one Section's sentences for review, replacing any existing
- * pass. Decisions never carry over — a new pass starts undecided.
+ * Prepares one Section's sentences for review. A byte-identical, uniquely
+ * matched sentence carries everything over, including its decision; the
+ * pass then opens the next REVIEW_SENTENCE_LIMIT undecided sentences in
+ * document order, so repeated preparation walks the whole Section (ADR
+ * 0005). Changed, removed, or duplicated-text sentences still reset:
+ * decisions never carry over to changed text.
  */
 export function withReviewPrepared(
   project: Project,
@@ -322,28 +395,48 @@ export function withReviewPrepared(
   const found = splitSentences(section.text);
   if (!found.length) return { project, outcome: "no_sentences" };
   const previous = project.review?.sectionId === sectionId ? project.review.sentences : [];
-  const used = new Set<string>();
-  const sentences: ReviewSentence[] = found.map((candidate) => {
-    // An unchanged sentence keeps its identity and, when still undecided,
-    // its working review state. A decision never carries over: a new pass
-    // starts undecided.
-    const matches = previous.filter((p) => p.text === candidate.text && !used.has(p.id));
-    const prior = matches.length === 1 ? matches[0] : null;
-    if (prior) used.add(prior.id);
-    const working = prior && !prior.decision ? prior : null;
-    return {
+  const foundCounts = countByText(found.map((candidate) => candidate.text));
+  const previousCounts = countByText(previous.map((sentence) => sentence.text));
+  const sentences: ReviewSentence[] = [];
+  let undecided = 0;
+  for (let at = 0; at < found.length; at++) {
+    const candidate = found[at];
+    // Unique on both sides, or no carry: attaching a decision to the
+    // wrong duplicate would be worse than losing it (ADR 0005).
+    const unique =
+      foundCounts.get(candidate.text) === 1 && previousCounts.get(candidate.text) === 1;
+    const prior = unique
+      ? previous.find((sentence) => sentence.text === candidate.text)
+      : undefined;
+    const decision = prior?.decision ?? null;
+    if (!decision) {
+      if (undecided === REVIEW_SENTENCE_LIMIT) continue;
+      undecided++;
+    }
+    sentences.push({
       id: prior?.id ?? newSentenceId(),
       text: candidate.text,
       start: candidate.start,
       end: candidate.end,
-      paperId: working?.paperId ?? null,
-      quote: working?.quote ?? "",
-      assessment: working?.assessment ?? "unreviewed",
-      revision: working?.revision ?? "",
-      note: working?.note ?? "",
-      decision: null,
-    };
-  });
+      paperId: prior?.paperId ?? null,
+      quote: prior?.quote ?? "",
+      assessment: prior?.assessment ?? "unreviewed",
+      revision: prior?.revision ?? "",
+      note: prior?.note ?? "",
+      decision,
+      // The note compares today's document neighbors against the ones
+      // snapshotted when the decision was made (ADR 0005); a legacy
+      // decision without a snapshot keeps its stored flag.
+      contextChanged: decision
+        ? decision.neighbors
+          ? neighborsDiffer(decision.neighbors, {
+              previous: found[at - 1]?.text ?? null,
+              next: found[at + 1]?.text ?? null,
+            })
+          : prior!.contextChanged
+        : false,
+    });
+  }
   const review: Review = { sectionId, baseText: section.text, sentences };
   return { project: { ...project, review }, outcome: "prepared" };
 }

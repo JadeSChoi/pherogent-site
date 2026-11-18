@@ -116,6 +116,13 @@ export type DecisionType = "approve" | "keep" | "flag";
 
 export const DECISION_TYPES: readonly DecisionType[] = ["approve", "keep", "flag"];
 
+/** The texts of the sentences immediately before and after a reviewed
+ * sentence; null where there is none. */
+export type NeighborTexts = {
+  previous: string | null;
+  next: string | null;
+};
+
 /**
  * The author's explicit, recorded decision on one reviewed sentence.
  * Nothing writes one of these except an author action; nothing approves
@@ -134,6 +141,13 @@ export type Decision = {
   at: string;
   /** True when the author approved despite a low keyword overlap warning. */
   lowOverlapAcknowledged: boolean;
+  /**
+   * The neighboring sentences as they read when the decision was made:
+   * the baseline for the context-changed note (ADR 0005). Null on
+   * decisions recorded before the note existed, which keep their stored
+   * flag instead.
+   */
+  neighbors: NeighborTexts | null;
 };
 
 /** One Manuscript sentence prepared for evidence review, with the author's
@@ -154,6 +168,12 @@ export type ReviewSentence = {
   revision: string;
   note: string;
   decision: Decision | null;
+  /**
+   * True when a neighboring sentence's text changed after this sentence's
+   * decision was made (ADR 0005): a quiet prompt to re-read, never a gate.
+   * Sticky across passes; cleared when the decision is undone or re-made.
+   */
+  contextChanged: boolean;
 };
 
 /**

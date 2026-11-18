@@ -54,7 +54,9 @@ describe("importBackup", () => {
             note: "Mouse study.",
             at: "2026-11-17T00:00:00.000Z",
             lowOverlapAcknowledged: false,
+            neighbors: { previous: null, next: "A following sentence." },
           },
+          contextChanged: true,
         },
       ],
     };

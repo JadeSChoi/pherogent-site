@@ -10,6 +10,7 @@ import {
   type Decision,
   type DecisionType,
   type Manuscript,
+  type NeighborTexts,
   type Notebook,
   type Project,
   type ReadingStatus,
@@ -143,6 +144,15 @@ function parseDecision(x: unknown): Decision | null {
     note: str(x.note),
     at: str(x.at),
     lowOverlapAcknowledged: x.lowOverlapAcknowledged === true,
+    neighbors: parseNeighbors(x.neighbors),
+  };
+}
+
+function parseNeighbors(x: unknown): NeighborTexts | null {
+  if (!isRecord(x)) return null;
+  return {
+    previous: typeof x.previous === "string" ? x.previous : null,
+    next: typeof x.next === "string" ? x.next : null,
   };
 }
 
@@ -173,6 +183,7 @@ function parseReviewSentence(x: unknown): ReviewSentence | null {
     revision: str(x.revision),
     note: str(x.note),
     decision: parseDecision(x.decision),
+    contextChanged: x.contextChanged === true,
   };
 }
 

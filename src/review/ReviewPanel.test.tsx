@@ -166,6 +166,34 @@ describe("ReviewPanel", () => {
     expect(screen.getByText("Approved by author")).toBeTruthy();
   });
 
+  it("carries a decision across batches and quietly notes changed context", () => {
+    render(
+      <Harness
+        initial={projectFixture(
+          "First sentence is long enough here. Second sentence is also long enough.",
+        )}
+      />,
+    );
+    prepare();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Second sentence is also long enough\./ }),
+    );
+    fireEvent.change(field("Source to check against"), { target: { value: "MED:1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
+    expect(screen.getByText("Original wording kept")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit section elsewhere" }));
+    prepare();
+    expect(screen.getByText("Original kept")).toBeTruthy();
+    expect(screen.getByText("Context changed")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /Second sentence is also long enough\./ }),
+    );
+    expect(screen.getByText("Original wording kept")).toBeTruthy();
+    expect(screen.getByText(/re-read the surrounding wording/)).toBeTruthy();
+  });
+
   it("pauses the review when the section text changes elsewhere", () => {
     render(
       <Harness
