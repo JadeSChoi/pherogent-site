@@ -115,4 +115,23 @@ test("the consented AI Evidence check runs end to end against the faked provider
   await expect(page.getByText("Code check")).toBeVisible();
   await expect(page.getByText("Author decision")).toBeVisible();
   await expect(page.getByText(/No decision has been recorded/)).not.toBeVisible();
+
+  // The usage meter renders this same run from the real status endpoint:
+  // the fake provider's 300 reported tokens, this visitor's remaining runs
+  // against the e2e config's 1,000, and the configured prices date.
+  await go(page, /Usage/);
+  const reported = page.getByRole("group", { name: "Reported usage" });
+  await expect(reported.getByText("300", { exact: true })).toBeVisible();
+  // 200 input tokens at the conservative reserved rate (2.5 micros) plus
+  // 100 output tokens at 12 micros: 1,700 microdollars.
+  await expect(reported.getByText("$0.0017")).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Remaining allowance" }).getByText("999 of 1,000"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Reservations held" }).getByText(/not charges/),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Prices behind the estimates last verified 2026-11-17/),
+  ).toBeVisible();
 });

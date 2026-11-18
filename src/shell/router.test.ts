@@ -6,6 +6,7 @@ describe("routeFromPath", () => {
     expect(routeFromPath("/")).toBe("overview");
     expect(routeFromPath("/library")).toBe("library");
     expect(routeFromPath("/manuscript")).toBe("manuscript");
+    expect(routeFromPath("/usage")).toBe("usage");
   });
 
   it("falls back to overview for unknown paths", () => {

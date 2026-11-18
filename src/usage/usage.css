@@ -1,0 +1,103 @@
+/* The usage meter — set as a ledger account page: ruled groups, dotted
+   leaders from label to figure, tabular numerals right-aligned. Figures are
+   data, so they sit in Archivo; the explanatory notes read in the serif. */
+
+.usage-page {
+  max-width: 600px;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.usage-head {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.usage-head h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.usage-status {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+}
+
+.usage-group {
+  border-top: 1px solid var(--color-rule-strong);
+  padding-top: var(--space-3);
+}
+
+.usage-group h2 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.usage-rows {
+  margin: 0;
+}
+
+.usage-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.usage-row dt {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* The ledger's dotted leader, carrying the eye from label to figure. */
+.usage-row dt::after {
+  content: "";
+  flex: 1;
+  min-width: var(--space-4);
+  border-bottom: 1px dotted var(--color-rule-strong);
+  margin: 0 0 3px var(--space-2);
+}
+
+.usage-row dd {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.usage-row .usage-unknown {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-mute);
+}
+
+.usage-group-note,
+.usage-foot {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  max-width: 54ch;
+}
+
+.usage-caution {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-warn);
+  max-width: 54ch;
+}
+

@@ -81,6 +81,7 @@ describe("AppShell", () => {
       "Overview",
       "Library2",
       "Manuscript4 words",
+      "Usage",
     ]);
     expect(screen.queryByRole("link", { name: /Evidence/ })).toBeNull();
     expect(screen.queryByRole("link", { name: /Activity/ })).toBeNull();
@@ -108,6 +109,15 @@ describe("AppShell", () => {
       screen.getByRole("complementary", { name: "Evidence review" }),
     ).toBeTruthy();
     expect(screen.getByText("Notebook")).toBeTruthy();
+  });
+
+  it("opens the usage meter from the rail", async () => {
+    render(<Harness />);
+    fireEvent.click(within(railNav()).getByRole("link", { name: "Usage" }));
+    expect(window.location.pathname).toBe("/usage");
+    expect(
+      await screen.findByRole("group", { name: "Remaining allowance" }),
+    ).toBeTruthy();
   });
 
   it("returns to the Overview from the rail's switch-project link", () => {

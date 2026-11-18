@@ -2,6 +2,7 @@ import { Library } from "../library/Library";
 import { ManuscriptPanel } from "../manuscript/ManuscriptPanel";
 import { NotebookPanel } from "../notebook/NotebookPanel";
 import { manuscriptWordCount } from "../storage/workspace";
+import { UsageMeterPanel } from "../usage/UsageMeterPanel";
 import { Nav, type NavItem } from "../ui";
 import { WorkspaceControls } from "../workspace/WorkspaceControls";
 import type { WorkspaceState } from "../workspace/useWorkspace";
@@ -23,6 +24,7 @@ export function AppShell(state: WorkspaceState) {
       ["overview", "Overview", undefined],
       ["library", "Library", (activeProject.sources ?? []).length],
       ["manuscript", "Manuscript", `${manuscriptWordCount(activeProject)} words`],
+      ["usage", "Usage", undefined],
     ] as const
   ).map(([key, label, count]) => ({
     label,
@@ -52,6 +54,7 @@ export function AppShell(state: WorkspaceState) {
         <NotebookPanel project={activeProject} onProjectChange={commitProject} />
       </>
     ),
+    usage: <UsageMeterPanel />,
   };
 
   return (
