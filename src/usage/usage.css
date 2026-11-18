@@ -93,11 +93,16 @@
   max-width: 54ch;
 }
 
+/* A billing caution, not an evidence state, so it carries no evidence
+   color (ADR 0003): full ink at a heavier weight behind an ink rule. */
 .usage-caution {
   margin: var(--space-2) 0 0;
+  border-left: 2px solid var(--color-ink);
+  padding-left: var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  color: var(--color-warn);
+  font-weight: 500;
+  color: var(--color-ink);
   max-width: 54ch;
 }
 

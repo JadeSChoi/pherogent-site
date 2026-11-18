@@ -26,8 +26,10 @@
   outline: 2px solid var(--color-ink);
   outline-offset: 1px;
 }
+/* Invalid is a form problem, not an evidence state (ADR 0003): the
+   marker is a heavier ink border, not the madder evidence color. */
 .ui-input[aria-invalid="true"] {
-  border-color: var(--color-bad);
+  border-color: var(--color-ink);
 }
 
 .ui-textarea {
@@ -46,5 +48,6 @@
   margin: 0;
   font-family: var(--font-sans);
   font-size: var(--text-xs);
-  color: var(--color-bad);
+  font-weight: 600;
+  color: var(--color-ink);
 }

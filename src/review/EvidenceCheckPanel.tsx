@@ -62,7 +62,7 @@ export function EvidenceCheckRecords({
   return (
     <div className="evidence-check-records">
       {needsRecheck && (
-        <p className="review-notice" role="status">
+        <p className="review-stale" role="status">
           Needs rechecking — {freshness!.reason} These records describe what
           was checked then; run a new check before relying on them.
         </p>

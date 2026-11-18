@@ -189,12 +189,12 @@ export function ReviewMargin({
         here, and nothing is approved until you approve it.
       </p>
       {notice && (
-        <p className="review-notice" role="status">
+        <p className="review-stale" role="status">
           {notice}
         </p>
       )}
       {needRechecking.map((entry) => (
-        <p key={entry.section.id} className="review-notice" role="status">
+        <p key={entry.section.id} className="review-stale" role="status">
           Needs rechecking — {entry.label}&rsquo;s text changed after its
           recorded Evidence checks, and no outdated approval carries over.
           Prepare its sentences again before relying on them.

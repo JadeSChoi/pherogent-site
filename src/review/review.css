@@ -44,7 +44,20 @@
   box-sizing: border-box;
 }
 
-.review-notice,
+/* System and status notices are not evidence states, so they carry no
+   evidence color (ADR 0003): full ink at a heavier weight behind an ink
+   rule. Staleness keeps the ochre caution — an outdated check is where
+   the evidence stands. */
+.review-notice {
+  margin: var(--space-2) 0 0;
+  border-left: 2px solid var(--color-ink);
+  padding-left: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
 .review-stale {
   margin: var(--space-2) 0 0;
   font-family: var(--font-sans);

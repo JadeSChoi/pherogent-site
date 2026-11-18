@@ -217,7 +217,10 @@
   margin: 0 0 var(--space-2);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
-  color: var(--color-bad);
+  border-left: 2px solid var(--color-ink);
+  padding-left: var(--space-3);
+  font-weight: 500;
+  color: var(--color-ink);
 }
 
 .library-result-count {
