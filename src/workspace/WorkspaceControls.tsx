@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Button, Dialog, Panel, Select, TextArea, TextInput } from "../ui";
+import { Button, Dialog, Select, TextArea, TextInput } from "../ui";
 import { exportBackup, importBackup } from "../storage/backup";
 import { createProject, type Project, type Workspace } from "../storage/workspace";
 import "./workspace.css";
@@ -84,9 +84,11 @@ export function WorkspaceControls({
   };
 
   return (
-    <Panel title="Projects">
-      <h2 className="workspace-project-name">{active.name}</h2>
-      {active.question && <p className="workspace-question">{active.question}</p>}
+    <section className="workspace-overview" aria-label="Projects">
+      <div className="workspace-page-head">
+        <h1 className="workspace-project-name">{active.name}</h1>
+        {active.question && <p className="workspace-question">{active.question}</p>}
+      </div>
       <div className="workspace-switcher">
         <Select
           label="Project"
@@ -122,11 +124,7 @@ export function WorkspaceControls({
           {importError}
         </p>
       )}
-      <p className="workspace-status" role="status">
-        {saved
-          ? "Saved in this browser."
-          : "Storage unavailable — export your work before closing."}
-      </p>
+      {/* The save state is announced once, by the shell's top bar. */}
 
       <Dialog open={newProjectOpen} onClose={closeNewProject} title="New research project">
         <form className="workspace-form" onSubmit={create}>
@@ -165,6 +163,6 @@ export function WorkspaceControls({
           <Button onClick={() => setPendingImport(undefined)}>Cancel</Button>
         </div>
       </Dialog>
-    </Panel>
+    </section>
   );
 }

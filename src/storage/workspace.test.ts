@@ -15,6 +15,7 @@ import {
   withSectionRemoved,
   withSectionUpdate,
   withSourceUpdate,
+  manuscriptWordCount,
 } from "./workspace";
 
 const paper: Paper = {
@@ -290,5 +291,21 @@ describe("appendNotebookToManuscript", () => {
     const result = appendNotebookToManuscript(project);
     expect(result.outcome).toBe("too_long");
     expect(result.project).toBe(project);
+  });
+});
+
+describe("manuscriptWordCount", () => {
+  it("counts words across headings and section text", () => {
+    let project = createProject("Vision recovery");
+    const first = project.manuscript!.sections[0];
+    project = withSectionUpdate(project, first.id, {
+      heading: "Results",
+      text: "Reprogramming restored visual function.\n\nIt did so in mice.",
+    });
+    expect(manuscriptWordCount(project)).toBe(10);
+  });
+
+  it("is zero for an empty manuscript", () => {
+    expect(manuscriptWordCount(createProject("Empty"))).toBe(0);
   });
 });

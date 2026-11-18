@@ -89,6 +89,16 @@ export function defaultManuscript(project: Pick<Project, "id">): Manuscript {
   return { title: "", sections: [{ id: `section-${project.id}`, heading: "", text: "" }] };
 }
 
+/** Words across the manuscript's headings and text, for the rail count. */
+export function manuscriptWordCount(project: Project): number {
+  const manuscript = project.manuscript ?? defaultManuscript(project);
+  return manuscript.sections.reduce(
+    (total, section) =>
+      total + (`${section.heading} ${section.text}`.match(/\S+/g)?.length ?? 0),
+    0,
+  );
+}
+
 export function manuscriptLength(manuscript: Manuscript): number {
   return manuscript.sections.reduce(
     (total, section) => total + section.heading.length + section.text.length,

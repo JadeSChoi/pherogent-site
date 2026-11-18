@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { go } from "./helpers";
 
 const paperTitle =
   "Reprogramming to recover youthful epigenetic information and restore vision.";
@@ -36,7 +37,8 @@ test.beforeEach(async ({ page }) => {
         }),
       }),
   );
-  await page.goto("/");
+  // A deep link straight to the Library route (SPA fallback serves it).
+  await page.goto("/library");
 });
 
 test("search, inspect, and save a paper with a reading note, persisted across reload", async ({
@@ -91,26 +93,32 @@ test("saved sources stay isolated per project across switches and reloads", asyn
   const savedRegion = page.getByRole("region", { name: "Saved sources" });
   await expect(savedRegion.getByText(paperTitle)).toBeVisible();
 
-  // A second project starts with no saved sources.
+  // A second project (created on the Overview) starts with no saved sources.
+  await go(page, /^Overview/);
   await page.getByRole("button", { name: "New project" }).click();
   await page.getByLabel("Project name").fill("Axolotl limb regeneration");
   await page.getByRole("button", { name: "Create project" }).click();
   await expect(
     page.getByRole("heading", { name: "Axolotl limb regeneration" }),
   ).toBeVisible();
+  await go(page, /^Library/);
   await expect(savedRegion).toHaveCount(0);
 
   // Switching back restores the first project's collection, and the
   // separation survives a reload.
+  await go(page, /^Overview/);
   await page
     .getByLabel("Project", { exact: true })
     .selectOption({ label: "Untitled project" });
+  await go(page, /^Library/);
   await expect(savedRegion.getByText(paperTitle)).toBeVisible();
 
   await page.reload();
   await expect(savedRegion.getByText(paperTitle)).toBeVisible();
+  await go(page, /^Overview/);
   await page
     .getByLabel("Project", { exact: true })
     .selectOption({ label: "Axolotl limb regeneration" });
+  await go(page, /^Library/);
   await expect(savedRegion).toHaveCount(0);
 });

@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { go } from "./helpers";
 
 test("notebook and manuscript edit, append as sections, and persist per project", async ({
   page,
 }, testInfo) => {
-  await page.goto("/");
+  // A deep link straight to the Manuscript route (SPA fallback serves it).
+  await page.goto("/manuscript");
 
   await page
     .getByLabel("Findings & interpretation")
@@ -55,18 +57,23 @@ test("notebook and manuscript edit, append as sections, and persist per project"
   ).toBe(true);
   expect(markdown).toContain("## Findings notes\n\nOSK restores vision in aged mice.");
 
-  // A second project has its own empty notebook and manuscript…
+  // A second project (created on the Overview) has its own empty notebook
+  // and manuscript…
+  await go(page, /^Overview/);
   await page.getByRole("button", { name: "New project" }).click();
   await page.getByLabel("Project name").fill("Axolotl limb regeneration");
   await page.getByRole("button", { name: "Create project" }).click();
+  await go(page, /^Manuscript/);
   await expect(page.getByLabel("Findings & interpretation")).toHaveValue("");
   await expect(page.getByLabel("Section 1 text")).toHaveValue("");
 
   // …and switching back restores the first project's work after a reload.
   await page.reload();
+  await go(page, /^Overview/);
   await page
     .getByLabel("Project", { exact: true })
     .selectOption({ label: "Untitled project" });
+  await go(page, /^Manuscript/);
   await expect(page.getByLabel("Section 1 text")).toHaveValue(
     "Existing opening paragraph.",
   );
@@ -78,7 +85,7 @@ test("notebook and manuscript edit, append as sections, and persist per project"
 test("a manuscript larger than the old 12,000-character cap writes, exports, and re-imports", async ({
   page,
 }, testInfo) => {
-  await page.goto("/");
+  await page.goto("/manuscript");
 
   // 15,000 characters in one section — impossible before ADR 0004.
   const longText = ("Fixture sentences about reef thresholds. ".repeat(400)).trim();
@@ -115,7 +122,7 @@ test("a manuscript larger than the old 12,000-character cap writes, exports, and
 test("importing a Markdown file splits headings into sections after confirmation", async ({
   page,
 }) => {
-  await page.goto("/");
+  await page.goto("/manuscript");
 
   await page.getByLabel("Section 1 text").fill("Original writing.");
   await page.getByLabel("Import manuscript file").setInputFiles({
