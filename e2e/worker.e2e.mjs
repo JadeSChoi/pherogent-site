@@ -41,38 +41,73 @@ const fakeEuropePmc = async (url) => {
 };
 
 // A deliberately overconfident judge, as in the server suites: the server
-// must verify its quote and claim itself and discard what fails.
+// must verify its quote and claim itself and discard what fails. The plan
+// and screen calls serve the freeform Research check (#14); a cited-sources
+// Evidence check never reaches them in the real pipeline.
 const fakeProvider = (model) => ({
   model,
   estimateInputTokens: () => 2000,
   async complete({ name, input }) {
-    if (name !== "pherogent_judge") {
-      throw new Error("The cited-sources check must not call " + name);
+    const data = JSON.parse(input).untrusted_data;
+    const paid = (value) => ({ inputTokens: 200, outputTokens: 100, value });
+    if (name === "pherogent_plan") {
+      return paid({ queries: ["OSK reprogramming vision", "partial reprogramming glaucoma"] });
     }
-    const { originalClaim } = JSON.parse(input).untrusted_data;
-    return {
-      inputTokens: 200,
-      outputTokens: 100,
-      value: {
-        summary: { established: [], uncertain: [], nextQuestions: [] },
+    if (name === "pherogent_screen") {
+      return paid({
+        keep: [
+          { paperId: "MED:33268865", reason: "Directly reports the OSK vision outcome." },
+        ],
+        refinementQuery: null,
+      });
+    }
+    if (name !== "pherogent_judge") {
+      throw new Error("The research pipeline must not call " + name);
+    }
+    const { originalClaim } = data;
+    if (!originalClaim) {
+      // Freeform mode: cards carry their own claims and no claimId.
+      return paid({
+        summary: {
+          established: [],
+          uncertain: ["Human evidence was not reported in this abstract."],
+          nextQuestions: ["Has OSK reprogramming been tested in primates?"],
+        },
         evidence: [
           {
             paperId: "MED:33268865",
-            claimId: originalClaim.id,
-            claim: originalClaim.text,
-            label: "partial",
+            claim: "Partial reprogramming reversed vision loss in aged mice.",
+            label: "supports",
             quote: E2E_QUOTE,
             passageId: "abstract",
             studyType: "Animal experiment",
             population: "Mice",
             mismatchNotes: ["The measured outcome is in mice, not people."],
-            suggestedWording:
-              "Partial reprogramming reversed vision loss in a mouse model of glaucoma.",
-            reason: "The source reports a mouse outcome narrower than the sentence.",
+            suggestedWording: null,
+            reason: "The abstract reports the vision outcome directly.",
           },
         ],
-      },
-    };
+      });
+    }
+    return paid({
+      summary: { established: [], uncertain: [], nextQuestions: [] },
+      evidence: [
+        {
+          paperId: "MED:33268865",
+          claimId: originalClaim.id,
+          claim: originalClaim.text,
+          label: "partial",
+          quote: E2E_QUOTE,
+          passageId: "abstract",
+          studyType: "Animal experiment",
+          population: "Mice",
+          mismatchNotes: ["The measured outcome is in mice, not people."],
+          suggestedWording:
+            "Partial reprogramming reversed vision loss in a mouse model of glaucoma.",
+          reason: "The source reports a mouse outcome narrower than the sentence.",
+        },
+      ],
+    });
   },
 });
 

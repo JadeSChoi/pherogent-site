@@ -5,6 +5,7 @@ describe("routeFromPath", () => {
   it("maps each destination's path to its route", () => {
     expect(routeFromPath("/")).toBe("overview");
     expect(routeFromPath("/library")).toBe("library");
+    expect(routeFromPath("/research")).toBe("research");
     expect(routeFromPath("/manuscript")).toBe("manuscript");
     expect(routeFromPath("/chat")).toBe("chat");
     expect(routeFromPath("/usage")).toBe("usage");

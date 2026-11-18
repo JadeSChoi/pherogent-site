@@ -86,6 +86,7 @@ describe("AppShell", () => {
     expect(links.map((link) => link.textContent)).toEqual([
       "Overview",
       "Library2",
+      "Research",
       "Manuscript4 words",
       "Section chat",
       "Usage",
@@ -124,6 +125,15 @@ describe("AppShell", () => {
     fireEvent.click(within(rail).getByRole("link", { name: /Section chat/ }));
     expect(screen.getByRole("navigation", { name: "Sections" })).toBeTruthy();
     expect(window.location.pathname).toBe("/chat");
+  });
+
+  it("opens the Research check from the rail, seeded with the project question", () => {
+    render(<Harness />);
+    fireEvent.click(within(railNav()).getByRole("link", { name: "Research" }));
+    expect(window.location.pathname).toBe("/research");
+    expect(
+      (screen.getByLabelText("Research question") as HTMLTextAreaElement).value,
+    ).toBe("Can sight be restored?");
   });
 
   it("opens the usage meter from the rail", async () => {

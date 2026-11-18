@@ -1,6 +1,8 @@
 import { SectionChatPanel } from "../chat/SectionChatPanel";
 import { useSectionChatRuns } from "../chat/useSectionChatRuns";
 import { Library } from "../library/Library";
+import { ResearchCheckPanel } from "../research/ResearchCheckPanel";
+import { useResearchCheckRun } from "../research/useResearchCheckRun";
 import { ManuscriptPanel } from "../manuscript/ManuscriptPanel";
 import { NotebookPanel } from "../notebook/NotebookPanel";
 import { manuscriptWordCount } from "../storage/workspace";
@@ -24,11 +26,15 @@ export function AppShell(state: WorkspaceState) {
   // The one in-flight chat run lives here, above the routes, so a reply
   // lands in its originating Project and section wherever the author is.
   const chatRuns = useSectionChatRuns(updateProject);
+  // Likewise the one Research check run: its unsaved note survives
+  // navigation, and explicit saves land in the originating project.
+  const researchRun = useResearchCheckRun(updateProject);
 
   const items: NavItem[] = (
     [
       ["overview", "Overview", undefined],
       ["library", "Library", (activeProject.sources ?? []).length],
+      ["research", "Research", researchRun.run?.running ? "1 run open" : undefined],
       ["manuscript", "Manuscript", `${manuscriptWordCount(activeProject)} words`],
       ["chat", "Section chat", chatRuns.pending ? "1 run open" : undefined],
       ["usage", "Usage", undefined],
@@ -55,6 +61,14 @@ export function AppShell(state: WorkspaceState) {
       </>
     ),
     library: <Library project={activeProject} onProjectChange={commitProject} />,
+    research: (
+      // Keyed by project so the question field reseeds on a project switch.
+      <ResearchCheckPanel
+        key={activeProject.id}
+        project={activeProject}
+        runState={researchRun}
+      />
+    ),
     manuscript: (
       <>
         <ManuscriptPanel project={activeProject} onProjectChange={commitProject} />

@@ -7,11 +7,18 @@
 
 import { useEffect, useState } from "react";
 
-export type Route = "overview" | "library" | "manuscript" | "chat" | "usage";
+export type Route =
+  | "overview"
+  | "library"
+  | "research"
+  | "manuscript"
+  | "chat"
+  | "usage";
 
 export const ROUTES: readonly Route[] = [
   "overview",
   "library",
+  "research",
   "manuscript",
   "chat",
   "usage",
@@ -20,6 +27,7 @@ export const ROUTES: readonly Route[] = [
 const PATHS: Record<Route, string> = {
   overview: "/",
   library: "/library",
+  research: "/research",
   manuscript: "/manuscript",
   chat: "/chat",
   usage: "/usage",

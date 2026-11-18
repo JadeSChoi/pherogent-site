@@ -20,6 +20,14 @@ _Avoid_: tool (ambiguous with MCP tools and UI tools), calculator, feature
 An author-initiated verification of one manuscript sentence against retrieved source text, producing three distinct records: the AI suggestion, the code check, and the author's decision.
 _Avoid_: sentence check, claim check, fact check
 
+**Research check**:
+A consented, bounded literature investigation of one freeform question or short paragraph, streaming its progress and producing a research note whose evidence quotes were code-verified. Everything it returns is an AI suggestion; findings and sources reach the Project only by explicit author action.
+_Avoid_: research agent (the legacy name), literature check, investigation
+
+**Research note**:
+The reviewable product of one Research check: AI-suggested findings, uncertainties, next questions, and evidence cards. Held in memory until the author saves or dismisses it — never a validated finding.
+_Avoid_: report, summary (that's one part of it)
+
 **Library**:
 A Project's paper-discovery surface: searching Europe PMC, inspecting candidates, and holding the Project's saved sources.
 _Avoid_: literature (the legacy view name), explore
