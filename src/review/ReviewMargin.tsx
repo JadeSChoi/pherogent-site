@@ -20,6 +20,7 @@ import {
   withSentencePatch,
 } from "./review";
 import { EvidenceCheckPanel, EvidenceCheckRecords } from "./EvidenceCheckPanel";
+import { checkFreshness, type CheckFreshness } from "./evidenceTrail";
 import "./review.css";
 
 type ReviewMarginProps = {
@@ -82,9 +83,12 @@ const DECISION_COPY: Record<
 
 function DecisionNote({
   sentence,
+  freshness,
   onUndo,
 }: {
   sentence: ReviewSentence;
+  /** The needs-rechecking state of the sentence's check (issue #11). */
+  freshness: CheckFreshness | null;
   onUndo: () => void;
 }) {
   const decision = sentence.decision!;
@@ -94,7 +98,11 @@ function DecisionNote({
       {/* The decided sentence's AI and code records stay beside the author
           record, so the check's three records remain distinct (issue #10). */}
       {sentence.evidenceCheck && (
-        <EvidenceCheckRecords check={sentence.evidenceCheck} decided />
+        <EvidenceCheckRecords
+          check={sentence.evidenceCheck}
+          decided
+          freshness={freshness}
+        />
       )}
       <p className="evidence-record-kicker">Author decision</p>
       <p className="review-decision-heading">{copy.heading}</p>
@@ -151,14 +159,22 @@ export function ReviewMargin({
     onProjectChange(result.project);
   };
 
-  const passes = sections
-    .map((section, index) => ({
-      section,
-      label: section.heading || `Section ${index + 1}`,
-      pass: reviewFor(project, section.id),
-      stale: isReviewStale(project, section.id),
-    }))
-    .filter((entry) => entry.pass && !entry.stale);
+  const entries = sections.map((section, index) => ({
+    section,
+    label: section.heading || `Section ${index + 1}`,
+    pass: reviewFor(project, section.id),
+    stale: isReviewStale(project, section.id),
+  }));
+  const passes = entries.filter((entry) => entry.pass && !entry.stale);
+  // Editing a checked Section marks its recorded checks needs-rechecking
+  // right here (issue #11); the pass itself already blocks every action
+  // until the Section is prepared again.
+  const needRechecking = entries.filter(
+    (entry) =>
+      entry.pass &&
+      entry.stale &&
+      entry.pass.sentences.some((sentence) => sentence.evidenceCheck),
+  );
 
   const allSentences = passes.flatMap((entry) => entry.pass!.sentences);
   const acknowledgingSentence = allSentences.find((s) => s.id === acknowledging);
@@ -177,6 +193,13 @@ export function ReviewMargin({
           {notice}
         </p>
       )}
+      {needRechecking.map((entry) => (
+        <p key={entry.section.id} className="review-notice" role="status">
+          Needs rechecking — {entry.label}&rsquo;s text changed after its
+          recorded Evidence checks, and no outdated approval carries over.
+          Prepare its sentences again before relying on them.
+        </p>
+      ))}
       {passes.length === 0 && (
         <p className="review-margin-hint">
           Prepare a section&rsquo;s sentences to review them against your
@@ -194,6 +217,7 @@ export function ReviewMargin({
                 <DecisionNote
                   key={sentence.id}
                   sentence={sentence}
+                  freshness={checkFreshness(project, sentence)}
                   onUndo={() => onProjectChange(undoDecision(project, sentence.id))}
                 />
               );

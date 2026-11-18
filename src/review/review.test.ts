@@ -293,7 +293,10 @@ describe("withEvidenceCheckRecorded", () => {
     const { project, sentence } = prepared();
     const check = evidenceCheck(sentence.text);
     const next = withEvidenceCheckRecorded(project, sentence.id, check);
-    expect(next.reviews![0].sentences[0].evidenceCheck).toEqual(check);
+    expect(next.reviews![0].sentences[0].evidenceCheck).toEqual({
+      ...check,
+      sourceSnapshots: {},
+    });
   });
 
   it("replaces an earlier check on the same sentence", () => {
@@ -371,6 +374,68 @@ describe("withEvidenceCheckRecorded", () => {
     };
     const again = withReviewPrepared(edited, sectionId).project;
     expect(again.reviews![0].sentences[0].evidenceCheck).toBeNull();
+  });
+});
+
+describe("evidence run log", () => {
+  const SENTENCE = "Reprogramming restored visual function in aged mice.";
+  const ABSTRACT = "Visual function improved in aged mice.";
+
+  it("recording a check snapshots the cited saved sources and logs the run", () => {
+    const { project, sectionId, sentences } = reviewFixture(SENTENCE, ABSTRACT);
+    const next = withEvidenceCheckRecorded(
+      project,
+      sentences[0].id,
+      evidenceCheck(sentences[0].text),
+    );
+    const attached = next.reviews![0].sentences[0].evidenceCheck!;
+    expect(attached.sourceSnapshots).toEqual({ "MED:1": expect.any(String) });
+    expect(next.evidenceRuns).toHaveLength(1);
+    expect(next.evidenceRuns![0]).toMatchObject({
+      sectionId,
+      sentenceId: sentences[0].id,
+      runId: "run-1",
+      sentenceText: sentences[0].text,
+      sourceSnapshots: { "MED:1": expect.any(String) },
+    });
+  });
+
+  it("a replacing run appends to the log; earlier provenance is never overwritten", () => {
+    const { project, sentences } = reviewFixture(SENTENCE, ABSTRACT);
+    const first = withEvidenceCheckRecorded(project, sentences[0].id, {
+      ...evidenceCheck(sentences[0].text),
+      runId: "run-old",
+    });
+    const next = withEvidenceCheckRecorded(
+      first,
+      sentences[0].id,
+      evidenceCheck(sentences[0].text),
+    );
+    expect(next.evidenceRuns!.map((run) => run.runId)).toEqual(["run-old", "run-1"]);
+  });
+
+  it("editing the checked sentence keeps the logged run even as the attached check resets", () => {
+    const { project, sectionId, sentences } = reviewFixture(SENTENCE, ABSTRACT);
+    const checked = withEvidenceCheckRecorded(
+      project,
+      sentences[0].id,
+      evidenceCheck(sentences[0].text),
+    );
+    const edited: Project = {
+      ...checked,
+      manuscript: {
+        ...checked.manuscript!,
+        sections: checked.manuscript!.sections.map((s) =>
+          s.id === sectionId
+            ? { ...s, text: "Reprogramming restored some visual function in aged mice." }
+            : s,
+        ),
+      },
+    };
+    const again = withReviewPrepared(edited, sectionId).project;
+    expect(again.reviews![0].sentences[0].evidenceCheck).toBeNull();
+    expect(again.evidenceRuns).toHaveLength(1);
+    expect(again.evidenceRuns![0].runId).toBe("run-1");
   });
 });
 

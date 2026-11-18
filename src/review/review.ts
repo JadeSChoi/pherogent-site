@@ -15,6 +15,7 @@ import {
   type Review,
   type ReviewSentence,
 } from "../storage/workspace";
+import { snapshotSources } from "./evidenceTrail";
 
 /** One pass opens at most this many undecided sentences: a bound on the
  * pass, not on the document (ADR 0004 forbids small document-level
@@ -179,11 +180,49 @@ export function withSentencePatch(
 
 /**
  * Records a completed, consented AI Evidence check on one undecided
- * sentence of a current pass, replacing any earlier run. The check is the
- * AI-suggestion and code-check records only; it never touches the author's
- * working state or decision.
+ * sentence of a current pass, replacing any earlier run on the sentence
+ * while appending to the Project's run log (issue #11): the attached check
+ * is the current record, the log is the durable evidence trail. The cited
+ * saved sources are fingerprinted here so the needs-rechecking state has
+ * its baseline. The check is the AI-suggestion and code-check records
+ * only; it never touches the author's working state or decision.
  */
 export function withEvidenceCheckRecorded(
+  project: Project,
+  sentenceId: string,
+  check: EvidenceCheck,
+): Project {
+  const found = sentenceLookup(project, sentenceId);
+  if (!found || isPassStale(project, found.pass)) return project;
+  const { pass, sentence } = found;
+  if (sentence.decision) return project;
+  const recorded: EvidenceCheck = {
+    ...check,
+    sourceSnapshots: snapshotSources(project, check.citedPaperIds),
+  };
+  return {
+    ...withPassReplaced(project, {
+      ...pass,
+      sentences: pass.sentences.map((candidate) =>
+        candidate.id === sentenceId
+          ? { ...candidate, evidenceCheck: recorded }
+          : candidate,
+      ),
+    }),
+    evidenceRuns: [
+      ...(project.evidenceRuns ?? []),
+      { ...recorded, sectionId: pass.sectionId, sentenceId },
+    ],
+  };
+}
+
+/**
+ * Re-attaches a logged, unchanged Evidence check to one undecided sentence
+ * of a current pass (issue #11). Reopening is bookkeeping only: nothing is
+ * appended to the run log, no model runs, and nothing is spent. The caller
+ * finds the check via reopenableCheck, which verified it still matches.
+ */
+export function withEvidenceCheckReopened(
   project: Project,
   sentenceId: string,
   check: EvidenceCheck,

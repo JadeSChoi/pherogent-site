@@ -16,6 +16,7 @@ import {
   type Section,
 } from "../storage/workspace";
 import { isReviewStale, reviewFor, withReviewPrepared } from "../review/review";
+import { evidenceTrailMarkdown } from "../review/evidenceTrail";
 import { proofSegments } from "../review/proofSegments";
 import { ReviewMargin } from "../review/ReviewMargin";
 import "../review/review.css";
@@ -57,18 +58,25 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
   latest.current = project;
   const manuscript = project.manuscript ?? defaultManuscript(project);
 
-  const download = () => {
-    const url = URL.createObjectURL(
-      new Blob([manuscriptMarkdown(project)], { type: "text/markdown" }),
-    );
+  const downloadMarkdown = (filename: string, content: string) => {
+    const url = URL.createObjectURL(new Blob([content], { type: "text/markdown" }));
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "pherogent-manuscript.md";
+    anchor.download = filename;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+
+  const download = () =>
+    downloadMarkdown("pherogent-manuscript.md", manuscriptMarkdown(project));
+
+  // The evidence-trail export (issue #11): every consented Evidence check
+  // run with its per-source outcomes and provenance, built entirely from
+  // the stored run log — exporting makes no network or model call.
+  const downloadTrail = () =>
+    downloadMarkdown("pherogent-evidence-trail.md", evidenceTrailMarkdown(project));
 
   const applyImport = (imported: Manuscript) => {
     const current = latest.current;
@@ -331,6 +339,7 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
           Add section
         </Button>
         <Button onClick={download}>Export manuscript (.md)</Button>
+        <Button onClick={downloadTrail}>Export evidence trail (.md)</Button>
         <Button onClick={() => fileInput.current?.click()}>Import .txt or .md</Button>
       </div>
       <input

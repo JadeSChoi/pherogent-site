@@ -13,6 +13,7 @@ import {
   type DecisionType,
   type EvidenceCheck,
   type EvidenceCheckCard,
+  type EvidenceRun,
   type Manuscript,
   type NeighborTexts,
   type Notebook,
@@ -194,11 +195,22 @@ function parseEvidenceCheckCard(x: unknown): EvidenceCheckCard | null {
   };
 }
 
+/** The recorded source fingerprints, or undefined when the check predates
+ * source-change tracking — never an invented baseline. */
+function parseSourceSnapshots(x: unknown): Record<string, string> | undefined {
+  if (!isRecord(x)) return undefined;
+  const snapshots: Record<string, string> = {};
+  for (const [id, fingerprint] of Object.entries(x)) {
+    if (typeof fingerprint === "string") snapshots[id] = fingerprint;
+  }
+  return snapshots;
+}
+
 /** An Evidence check is re-runnable with fresh consent, so an unreadable one
  * restores as null rather than taking the sentence down with it. */
 function parseEvidenceCheck(x: unknown): EvidenceCheck | null {
   if (!isRecord(x) || !Array.isArray(x.cards)) return null;
-  return {
+  const check: EvidenceCheck = {
     at: str(x.at),
     runId: typeof x.runId === "string" && x.runId ? x.runId : null,
     sentenceText: str(x.sentenceText),
@@ -209,6 +221,19 @@ function parseEvidenceCheck(x: unknown): EvidenceCheck | null {
     unavailablePaperIds: strings(x.unavailablePaperIds),
     notes: strings(x.notes),
   };
+  const sourceSnapshots = parseSourceSnapshots(x.sourceSnapshots);
+  if (sourceSnapshots) check.sourceSnapshots = sourceSnapshots;
+  return check;
+}
+
+/** The run log is historical provenance (issue #11): an unreadable entry
+ * drops alone so one damaged run never erases the rest of the trail. */
+function parseEvidenceRun(x: unknown): EvidenceRun | null {
+  if (!isRecord(x)) return null;
+  const check = parseEvidenceCheck(x);
+  if (!check) return null;
+  if (typeof x.sectionId !== "string" || typeof x.sentenceId !== "string") return null;
+  return { ...check, sectionId: x.sectionId, sentenceId: x.sentenceId };
 }
 
 function parseReviewSentence(x: unknown): ReviewSentence | null {
@@ -319,6 +344,12 @@ function parseProject(x: unknown): Project | null {
   if (manuscript) project.manuscript = manuscript;
   const reviews = parseReviews(x.reviews, x.review);
   if (reviews) project.reviews = reviews;
+  if (Array.isArray(x.evidenceRuns)) {
+    const runs = x.evidenceRuns
+      .map(parseEvidenceRun)
+      .filter((run): run is EvidenceRun => run !== null);
+    if (runs.length) project.evidenceRuns = runs;
+  }
   if ("legacy" in x) project.legacy = x.legacy;
   return project;
 }

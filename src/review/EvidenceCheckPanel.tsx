@@ -19,7 +19,13 @@ import {
   type CheckAccess,
   type CheckRequest,
 } from "./evidenceCheck";
-import { withEvidenceCheckRecorded } from "./review";
+import { withEvidenceCheckRecorded, withEvidenceCheckReopened } from "./review";
+import {
+  checkFreshness,
+  reopenableCheck,
+  sameRun,
+  type CheckFreshness,
+} from "./evidenceTrail";
 
 const LABEL_COPY: Record<AiLabel, string> = {
   supports: "Suggests this source supports the sentence",
@@ -37,17 +43,30 @@ const LABEL_COPY: Record<AiLabel, string> = {
 export function EvidenceCheckRecords({
   check,
   decided,
+  freshness,
   onUseWording,
 }: {
   check: EvidenceCheck;
   /** Whether the sentence already carries the author's decision record. */
   decided: boolean;
+  /** The check's needs-rechecking state (issue #11). A check that needs
+   * rechecking keeps its records visible but withholds the use-wording
+   * action: outdated suggestions must not flow into an approval. */
+  freshness?: CheckFreshness | null;
   /** Author action copying a suggestion into the proposed wording, which
    * also opens that card's source for the author's own inspection. */
   onUseWording?: (wording: string, paperId: string) => void;
 }) {
+  const needsRecheck =
+    freshness !== undefined && freshness !== null && !freshness.fresh;
   return (
     <div className="evidence-check-records">
+      {needsRecheck && (
+        <p className="review-notice" role="status">
+          Needs rechecking — {freshness!.reason} These records describe what
+          was checked then; run a new check before relying on them.
+        </p>
+      )}
       {check.cards.length === 0 && (
         <p className="review-margin-hint">
           No evidence card survived the server&rsquo;s checks for this sentence.
@@ -74,7 +93,7 @@ export function EvidenceCheckRecords({
                 <p className="evidence-record-wording">
                   {card.suggestion.suggestedWording}
                 </p>
-                {onUseWording && (
+                {onUseWording && !needsRecheck && (
                   <Button
                     onClick={() =>
                       onUseWording(card.suggestion.suggestedWording!, card.paperId)
@@ -174,6 +193,18 @@ export function EvidenceCheckPanel({
     const reason = checkBlockedReason(sentence, [...selected]);
     if (reason) {
       setNotice(reason);
+      return;
+    }
+    // An unchanged logged run answers without any request (issue #11):
+    // reopening re-attaches the recorded check — no model call, no spend.
+    // With that run already attached, previewing again is a deliberate
+    // re-run and proceeds to consent.
+    const logged = reopenableCheck(project, sentence, [...selected]);
+    if (logged && !(sentence.evidenceCheck && sameRun(sentence.evidenceCheck, logged))) {
+      onProjectChange(withEvidenceCheckReopened(project, sentence.id, logged));
+      setNotice(
+        "Reopened the recorded check for this unchanged sentence and selection — nothing was sent and nothing was spent.",
+      );
       return;
     }
     setNotice(undefined);
@@ -285,6 +316,7 @@ export function EvidenceCheckPanel({
         <EvidenceCheckRecords
           check={sentence.evidenceCheck}
           decided={false}
+          freshness={checkFreshness(project, sentence)}
           onUseWording={onUseWording}
         />
       )}

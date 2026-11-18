@@ -60,6 +60,18 @@ _Avoid_: verdict (the legacy field name), label (reserved for AI suggestions)
 The author's explicit, recorded outcome for a prepared sentence — approve wording/citation, keep the original, or record a finding — always undoable. Nothing decides automatically.
 _Avoid_: resolution, approval (only one decision kind)
 
+**Evidence trail**:
+A Project's durable record of every consented Evidence check run — its provenance, per-source outcomes, and whether it is still current — exportable as Markdown. Later edits mark entries as needing rechecking; they never erase them.
+_Avoid_: audit log, history, run list
+
+**Needs rechecking**:
+The state of an Evidence check whose checked sentence or cited saved sources changed after the run. Its records stay visible as past records but can no longer feed an approval; only a new consented run clears it.
+_Avoid_: stale (reserved for review passes), expired, invalidated
+
+**Reopening (a check)**:
+Re-attaching a recorded Evidence check to a sentence whose text and cited sources are unchanged since that run. Reopening is bookkeeping: no model call is made and nothing is spent.
+_Avoid_: re-running (a new consented run), restoring
+
 **Quote match**:
 The code-only check that a passage the author pasted appears verbatim (whitespace aside) in a saved source's text. It checks text, not scientific support.
 _Avoid_: verification, evidence match

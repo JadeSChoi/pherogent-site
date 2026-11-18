@@ -225,6 +225,26 @@ export type EvidenceCheck = {
   unavailablePaperIds: string[];
   /** The run's uncertainty notes, including discarded-card warnings. */
   notes: string[];
+  /**
+   * Fingerprint of each cited saved source's paper record as it stood when
+   * the check was recorded, keyed by paper id (issue #11): the baseline the
+   * needs-rechecking state compares against. Absent on checks recorded
+   * before source-change tracking, which therefore read as needing
+   * rechecking. A source missing from the Library at record time has no
+   * entry.
+   */
+  sourceSnapshots?: Record<string, string>;
+};
+
+/**
+ * One consented Evidence check run in the Project's append-only run log
+ * (issue #11): the check as recorded plus where it attached. The log is the
+ * durable evidence trail — later edits, re-preparations, and replacing runs
+ * never remove or rewrite an entry.
+ */
+export type EvidenceRun = EvidenceCheck & {
+  sectionId: string;
+  sentenceId: string;
 };
 
 /** One Manuscript sentence prepared for evidence review, with the author's
@@ -284,6 +304,9 @@ export type Project = {
   /** The evidence review passes, at most one per Section (ADR 0006);
    * absent until sentences are first prepared. */
   reviews?: Review[];
+  /** The append-only Evidence check run log (issue #11); absent until a
+   * check first completes. */
+  evidenceRuns?: EvidenceRun[];
   /**
    * The untouched project payload from an imported legacy v2 backup
    * (draft, research, papers, logs). Preserved so later features can port

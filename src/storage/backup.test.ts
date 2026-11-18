@@ -94,6 +94,53 @@ describe("importBackup", () => {
     expect(result).toEqual({ ok: true, workspace });
   });
 
+  it("round-trips source snapshots and the evidence run log", () => {
+    const workspace = createWorkspace();
+    const project = workspace.projects[0];
+    const sectionId = project.manuscript!.sections[0].id;
+    const check = {
+      at: "2026-11-18T00:00:00.000Z",
+      runId: "run-1",
+      sentenceText: "Reprogramming restored visual function in aged mice.",
+      citedPaperIds: ["MED:1"],
+      cards: [],
+      unavailablePaperIds: [],
+      notes: [],
+      sourceSnapshots: { "MED:1": '["MED:1","A title"]' },
+    };
+    project.evidenceRuns = [{ ...check, sectionId, sentenceId: "sentence-1" }];
+
+    const result = importBackup(exportBackup(workspace));
+
+    expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("drops an unreadable evidence run alone, keeping the rest of the trail", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace));
+    raw.projects[0].evidenceRuns = [
+      { not: "a run" },
+      {
+        at: "2026-11-18T00:00:00.000Z",
+        runId: "run-2",
+        sentenceText: "A sentence long enough to anchor.",
+        citedPaperIds: ["MED:1"],
+        cards: [],
+        unavailablePaperIds: [],
+        notes: [],
+        sectionId: "section-1",
+        sentenceId: "sentence-1",
+      },
+    ];
+
+    const result = importBackup(text(raw));
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.workspace.projects[0].evidenceRuns).toHaveLength(1);
+    expect(result.workspace.projects[0].evidenceRuns![0].runId).toBe("run-2");
+  });
+
   it("restores an unreadable Evidence check as null without losing the sentence", () => {
     const workspace = createWorkspace();
     const project = workspace.projects[0];

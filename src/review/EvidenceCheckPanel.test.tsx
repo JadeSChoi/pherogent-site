@@ -3,8 +3,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { clearOwnerKey, readOwnerKey } from "../api/ownerKey";
 import type { Paper } from "../library/europePmc";
-import { createProject, type Project } from "../storage/workspace";
-import { withReviewPrepared } from "./review";
+import {
+  createProject,
+  type EvidenceCheck,
+  type Project,
+} from "../storage/workspace";
+import {
+  recordDecision,
+  withEvidenceCheckRecorded,
+  withReviewPrepared,
+  withSentencePatch,
+} from "./review";
 import { ReviewMargin } from "./ReviewMargin";
 
 const SENTENCE = "Reprogramming restored visual function in aged mice.";
@@ -53,7 +62,7 @@ function fixture() {
 
 let latestProject: Project;
 
-function Harness({ initial, sentenceId }: { initial: Project; sentenceId: string }) {
+function Harness({ initial, sentenceId }: { initial: Project; sentenceId?: string }) {
   const [project, setProject] = useState(initial);
   latestProject = project;
   return (
@@ -338,5 +347,141 @@ describe("EvidenceCheckPanel via ReviewMargin", () => {
     fireEvent.click(await openPreview());
     await screen.findByText(/Shorten the question/);
     expect(latestProject.reviews![0].sentences[0].evidenceCheck).toBeNull();
+  });
+});
+
+/** A completed Evidence check run as the client stores it. */
+const storedCheck = (sentenceText: string): EvidenceCheck => ({
+  at: "2026-11-18T00:00:00Z",
+  runId: "run-1",
+  sentenceText,
+  citedPaperIds: ["MED:33268865"],
+  cards: [
+    {
+      paperId: "MED:33268865",
+      suggestion: {
+        label: "partial",
+        suggestedWording: "Visual function improved in aged mice.",
+        reason: "The measured outcome is narrower than the sentence.",
+        mismatchNotes: [],
+        studyType: "Animal experiment",
+        population: "Mice",
+      },
+      check: {
+        quoteVerified: true,
+        quote: "Visual function improved in aged mice",
+        location: "Abstract (excerpt)",
+        coverage: "Abstract excerpt only.",
+        designAdjusted: false,
+      },
+    },
+  ],
+  unavailablePaperIds: [],
+  notes: [],
+});
+
+/** The project with the checked source's abstract rewritten. */
+const withSourceTextChanged = (project: Project): Project => ({
+  ...project,
+  sources: project.sources!.map((source) =>
+    source.paper.id === "MED:33268865"
+      ? { ...source, paper: { ...source.paper, abstract: "A different abstract." } }
+      : source,
+  ),
+});
+
+describe("Evidence check staleness and reopening", () => {
+  afterEach(() => {
+    clearOwnerKey();
+    vi.unstubAllGlobals();
+  });
+
+  it("marks the check needs-rechecking and withholds its wording once the source changed", () => {
+    const { project, sentence } = fixture();
+    stubApi();
+    const checked = withEvidenceCheckRecorded(
+      project,
+      sentence.id,
+      storedCheck(sentence.text),
+    );
+    render(
+      <Harness initial={withSourceTextChanged(checked)} sentenceId={sentence.id} />,
+    );
+    expect(screen.getByText(/Needs rechecking/)).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Use as proposed wording" })).toBeNull();
+  });
+
+  it("marks a Section's recorded checks needs-rechecking when its text is edited", () => {
+    const { project, sentence } = fixture();
+    stubApi();
+    const checked = withEvidenceCheckRecorded(
+      project,
+      sentence.id,
+      storedCheck(sentence.text),
+    );
+    const edited: Project = {
+      ...checked,
+      manuscript: {
+        ...checked.manuscript!,
+        sections: checked.manuscript!.sections.map((section) => ({
+          ...section,
+          text: "An entirely rewritten section text.",
+        })),
+      },
+    };
+    render(<Harness initial={edited} sentenceId={sentence.id} />);
+    expect(screen.getByText(/Needs rechecking/)).toBeDefined();
+    expect(screen.getByText(/Prepare its sentences again/)).toBeDefined();
+  });
+
+  it("reopens an unchanged logged check with no request of any kind", () => {
+    const { project, sentence } = fixture();
+    const posts = stubApi();
+    const checked = withEvidenceCheckRecorded(
+      project,
+      sentence.id,
+      storedCheck(sentence.text),
+    );
+    // The attached check is gone but the logged run remains, as after an
+    // edit-and-revert of the section.
+    const detached: Project = {
+      ...checked,
+      reviews: checked.reviews!.map((pass) => ({
+        ...pass,
+        sentences: pass.sentences.map((s) => ({ ...s, evidenceCheck: null })),
+      })),
+    };
+    render(<Harness initial={detached} sentenceId={sentence.id} />);
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Reprogramming restores vision/ }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Preview AI check" }));
+
+    expect(screen.getByText("AI suggestion")).toBeDefined();
+    expect(screen.getByText(/nothing was sent and nothing was spent/i)).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Consent and send" })).toBeNull();
+    expect(posts).toHaveLength(0);
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(0);
+    expect(latestProject.evidenceRuns).toHaveLength(1);
+    expect(latestProject.reviews![0].sentences[0].evidenceCheck?.runId).toBe("run-1");
+  });
+
+  it("shows needs-rechecking beside a decided sentence once its source changed", () => {
+    const { project, sentence } = fixture();
+    stubApi();
+    const checked = withEvidenceCheckRecorded(
+      project,
+      sentence.id,
+      storedCheck(sentence.text),
+    );
+    const assessed = withSentencePatch(checked, sentence.id, {
+      paperId: "MED:33268865",
+      quote: "Visual function improved in aged mice",
+      assessment: "supports",
+    });
+    const decided = recordDecision(assessed, sentence.id).project;
+    render(<Harness initial={withSourceTextChanged(decided)} sentenceId={undefined} />);
+    expect(screen.getByText("Approved by author")).toBeDefined();
+    expect(screen.getByText(/Needs rechecking/)).toBeDefined();
   });
 });
