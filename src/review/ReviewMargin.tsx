@@ -342,10 +342,10 @@ function SentenceEditor({
           />
         </>
       )}
-      {/* Both actions appear once a source is under inspection, matching
-          the #9 panel exactly (relayout, not redesign). */}
-      {sentence.paperId && (
-        <div className="review-actions">
+      {/* Keeping the original needs no source (owner decision on #21);
+          the assessment-based decision still requires one. */}
+      <div className="review-actions">
+        {sentence.paperId && (
           <Button
             variant="primary"
             disabled={!canDecide(project, sentence)}
@@ -353,11 +353,11 @@ function SentenceEditor({
           >
             {decideLabel(sentence)}
           </Button>
-          <Button onClick={() => onProjectChange(keepOriginal(project, sentence.id))}>
-            Keep original
-          </Button>
-        </div>
-      )}
+        )}
+        <Button onClick={() => onProjectChange(keepOriginal(project, sentence.id))}>
+          Keep original
+        </Button>
+      </div>
     </div>
   );
 }

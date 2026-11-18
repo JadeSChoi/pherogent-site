@@ -165,6 +165,13 @@ describe("the review flow in the proof-sheet margin", () => {
     expect(screen.queryByLabelText("Evidence passage")).toBeNull();
   });
 
+  it("records keep original without a source selected", () => {
+    render(<Harness initial={projectFixture("First sentence is long enough here.")} />);
+    prepare();
+    fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
+    expect(within(margin()).getByText("Original wording kept")).toBeTruthy();
+  });
+
   it("opens the next undecided sentence's controls after a decision", () => {
     render(
       <Harness

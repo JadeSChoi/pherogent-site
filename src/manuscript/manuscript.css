@@ -98,11 +98,35 @@
 /* The proof-sheet (issue #21): the reading column beside the evidence
    margin, separated by a hairline — one continuous document, not cards. */
 
+/* The text column flexes so text plus margin always fit the page (the
+   fixed 44rem + 22rem pair overflowed laptop widths); the reading
+   measure is capped on .manuscript-doc itself. */
 .proof-doc {
   display: grid;
-  grid-template-columns: minmax(0, 44rem) minmax(16rem, 22rem);
-  gap: var(--space-4) var(--space-7);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 20rem);
+  gap: var(--space-4) var(--space-6);
   align-items: start;
+}
+
+.manuscript-doc-sub-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-ink);
+}
+
+.manuscript-doc-sub {
+  margin: 0;
+  font-style: italic;
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+}
+
+.manuscript-doc-sub-row > :last-child {
+  margin-left: auto;
 }
 
 .proof-margin {
@@ -139,21 +163,34 @@
 }
 
 /* Quiet marks for settled states; stronger color only where the
-   evidence stands unresolved (ADR 0003). */
+   evidence stands unresolved (ADR 0003). Offset underlines clear the
+   descenders so each state reads at a glance. */
 .proof-s-approve {
-  border-bottom: 1px solid var(--color-ok-faint);
+  text-decoration: underline;
+  text-decoration-color: var(--color-ok-faint);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
 }
 
 .proof-s-keep {
-  border-bottom: 2px solid var(--color-warn);
+  text-decoration: underline;
+  text-decoration-color: var(--color-warn);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
 }
 
 .proof-s-flag {
-  border-bottom: 2px solid var(--color-bad);
+  text-decoration: underline;
+  text-decoration-color: var(--color-bad);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
 }
 
 .proof-s-unchecked {
-  border-bottom: 2px dotted var(--color-mute);
+  text-decoration: underline dotted;
+  text-decoration-color: var(--color-mute);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
 }
 
 .proof-s[aria-pressed="true"] {
@@ -167,7 +204,9 @@
   margin-top: var(--space-2);
 }
 
-@media (max-width: 920px) {
+/* Below a comfortable two-column width, the margin drops under the
+   text as the prototype's notes do. */
+@media (max-width: 1080px) {
   .proof-doc {
     grid-template-columns: minmax(0, 1fr);
   }

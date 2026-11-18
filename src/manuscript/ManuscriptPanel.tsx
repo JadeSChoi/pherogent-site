@@ -5,6 +5,7 @@ import {
   defaultManuscript,
   manuscriptFromText,
   manuscriptMarkdown,
+  manuscriptWordCount,
   withManuscriptUpdate,
   withSectionAdded,
   withSectionRemoved,
@@ -156,13 +157,26 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
   const activeId =
     selectedId && undecidedIds.includes(selectedId) ? selectedId : undecidedIds[0];
 
+  /** The page's one primary action: open the next sentence to check, or
+   * prepare the next Section (or batch) that has something to review. */
+  const checkNext = () => {
+    if (undecidedIds.length) {
+      setSelectedId(undecidedIds[0]);
+      return;
+    }
+    const candidate = manuscript.sections.find((section) => {
+      if (!section.text.trim()) return false;
+      const { proof } = passState(section);
+      return !proof || proof.sentences.every((sentence) => sentence.decision);
+    });
+    if (candidate) prepare(candidate);
+  };
+
+  const words = manuscriptWordCount(project);
+  const sectionCount = manuscript.sections.length;
+
   return (
     <div className="manuscript-page">
-      <p className="manuscript-hint">
-        The one manuscript of {project.name}, written in sections that read as
-        one document, with your evidence review in the margin beside it.
-        Saved in this browser as you write.
-      </p>
       <div className="proof-doc">
         <div className="manuscript-doc">
           {/* A textarea so a long title wraps in the reading column the way
@@ -182,24 +196,38 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
               )
             }
           />
+          <div className="manuscript-doc-sub-row">
+            <p className="manuscript-doc-sub">
+              {words === 1 ? "1 word" : `${words.toLocaleString()} words`} across{" "}
+              {sectionCount === 1 ? "1 section" : `${sectionCount} sections`}, saved
+              in this browser as you write
+            </p>
+            <Button variant="primary" onClick={checkNext}>
+              Check next sentence
+            </Button>
+          </div>
           {manuscript.sections.map((section, index) => {
             const { stale, proof } = passState(section);
             return (
               <div key={section.id} className="manuscript-section">
-                <input
-                  className="manuscript-heading"
-                  aria-label={`Section ${index + 1} heading`}
-                  maxLength={300}
-                  value={section.heading}
-                  placeholder={index === 0 ? "Heading (optional)" : "Section heading"}
-                  onChange={(event) =>
-                    onProjectChange(
-                      withSectionUpdate(project, section.id, {
-                        heading: event.currentTarget.value,
-                      }),
-                    )
-                  }
-                />
+                {/* The reading view shows no empty heading field; add a
+                    heading from the section's edit view. */}
+                {(!proof || section.heading) && (
+                  <input
+                    className="manuscript-heading"
+                    aria-label={`Section ${index + 1} heading`}
+                    maxLength={300}
+                    value={section.heading}
+                    placeholder={index === 0 ? "Heading (optional)" : "Section heading"}
+                    onChange={(event) =>
+                      onProjectChange(
+                        withSectionUpdate(project, section.id, {
+                          heading: event.currentTarget.value,
+                        }),
+                      )
+                    }
+                  />
+                )}
                 {proof ? (
                   <>
                     <p className="proof-section-text">
@@ -221,13 +249,13 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
                       )}
                     </p>
                     <div className="proof-section-actions">
-                      <Button onClick={() => setEditing(section.id, true)}>
+                      <Button variant="link" onClick={() => setEditing(section.id, true)}>
                         Edit text
                       </Button>
                       {/* Re-preparing walks the Section in batches (ADR
                           0005): decisions on unchanged sentences carry
                           over and the next undecided sentences open. */}
-                      <Button onClick={() => prepare(section)}>
+                      <Button variant="link" onClick={() => prepare(section)}>
                         Prepare sentences for review
                       </Button>
                     </div>
@@ -262,12 +290,13 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
                     )}
                     <div className="proof-section-actions">
                       {section.text.trim() && (
-                        <Button onClick={() => prepare(section)}>
+                        <Button variant="link" onClick={() => prepare(section)}>
                           Prepare sentences for review
                         </Button>
                       )}
                       {!section.heading && !section.text && manuscript.sections.length > 1 && (
                         <Button
+                          variant="link"
                           aria-label={`Remove section ${index + 1}`}
                           onClick={() =>
                             onProjectChange(withSectionRemoved(project, section.id))
@@ -287,13 +316,6 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
               {prepareNotice}
             </p>
           )}
-          <div className="manuscript-actions">
-            <Button onClick={() => onProjectChange(withSectionAdded(project))}>
-              Add section
-            </Button>
-            <Button onClick={download}>Export manuscript (.md)</Button>
-            <Button onClick={() => fileInput.current?.click()}>Import .txt or .md</Button>
-          </div>
         </div>
         <aside className="proof-margin" aria-label="Evidence review">
           <ReviewMargin
@@ -302,6 +324,14 @@ export function ManuscriptPanel({ project, onProjectChange }: ManuscriptPanelPro
             selectedId={activeId}
           />
         </aside>
+      </div>
+      {/* Document chores sit below the reading flow. */}
+      <div className="manuscript-actions">
+        <Button onClick={() => onProjectChange(withSectionAdded(project))}>
+          Add section
+        </Button>
+        <Button onClick={download}>Export manuscript (.md)</Button>
+        <Button onClick={() => fileInput.current?.click()}>Import .txt or .md</Button>
       </div>
       <input
         ref={fileInput}

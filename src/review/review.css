@@ -36,6 +36,14 @@
   gap: var(--space-3);
 }
 
+/* A select sizes to its longest option (a paper title), so pin every
+   field to the margin's width instead of letting it widen the column. */
+.review-margin .ui-input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .review-notice,
 .review-stale {
   margin: var(--space-2) 0 0;
