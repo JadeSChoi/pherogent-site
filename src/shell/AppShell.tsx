@@ -1,3 +1,5 @@
+import { SectionChatPanel } from "../chat/SectionChatPanel";
+import { useSectionChatRuns } from "../chat/useSectionChatRuns";
 import { Library } from "../library/Library";
 import { ManuscriptPanel } from "../manuscript/ManuscriptPanel";
 import { NotebookPanel } from "../notebook/NotebookPanel";
@@ -16,14 +18,19 @@ import "./shell.css";
  * that exist; it collapses to the top nav at narrow widths.
  */
 export function AppShell(state: WorkspaceState) {
-  const { workspace, activeProject, saved, commit, commitProject } = state;
+  const { workspace, activeProject, saved, commit, commitProject, updateProject } =
+    state;
   const { route, navigate } = useRoute();
+  // The one in-flight chat run lives here, above the routes, so a reply
+  // lands in its originating Project and section wherever the author is.
+  const chatRuns = useSectionChatRuns(updateProject);
 
   const items: NavItem[] = (
     [
       ["overview", "Overview", undefined],
       ["library", "Library", (activeProject.sources ?? []).length],
       ["manuscript", "Manuscript", `${manuscriptWordCount(activeProject)} words`],
+      ["chat", "Section chat", chatRuns.pending ? "1 run open" : undefined],
       ["usage", "Usage", undefined],
     ] as const
   ).map(([key, label, count]) => ({
@@ -53,6 +60,13 @@ export function AppShell(state: WorkspaceState) {
         <ManuscriptPanel project={activeProject} onProjectChange={commitProject} />
         <NotebookPanel project={activeProject} onProjectChange={commitProject} />
       </>
+    ),
+    chat: (
+      <SectionChatPanel
+        project={activeProject}
+        onProjectChange={commitProject}
+        runs={chatRuns}
+      />
     ),
     usage: <UsageMeterPanel />,
   };

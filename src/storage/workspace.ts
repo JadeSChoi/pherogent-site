@@ -5,6 +5,7 @@
  */
 
 import type { Paper } from "../library/europePmc";
+import type { ProjectChat } from "../chat/sectionChat";
 
 /** Where the author stands with a saved source. Reading state, not approval. */
 export type ReadingStatus = "to-read" | "useful" | "conflicting";
@@ -307,6 +308,8 @@ export type Project = {
   /** The append-only Evidence check run log (issue #11); absent until a
    * check first completes. */
   evidenceRuns?: EvidenceRun[];
+  /** The Section chat state (issue #12); absent until the chat is used. */
+  chat?: ProjectChat;
   /**
    * The untouched project payload from an imported legacy v2 backup
    * (draft, research, papers, logs). Preserved so later features can port

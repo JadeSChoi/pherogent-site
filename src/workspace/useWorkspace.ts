@@ -12,6 +12,12 @@ export type WorkspaceState = {
   commit: (next: Workspace) => void;
   /** Replaces one project (matched by id) and commits the workspace. */
   commitProject: (next: Project) => void;
+  /**
+   * Applies a change to one project by id against the latest workspace —
+   * safe across awaits, so a reply landing after navigation reaches its
+   * originating project without clobbering edits made meanwhile.
+   */
+  updateProject: (projectId: string, mutate: (project: Project) => Project) => void;
 };
 
 const SAVE_INTERVAL_MS = 1000;
@@ -60,5 +66,13 @@ export function useWorkspace(): WorkspaceState {
       projects: workspace.projects.map((p) => (p.id === next.id ? next : p)),
     });
 
-  return { workspace, activeProject, saved, commit, commitProject };
+  const updateProject = (projectId: string, mutate: (project: Project) => Project) =>
+    commit({
+      ...latest.current,
+      projects: latest.current.projects.map((p) =>
+        p.id === projectId ? mutate(p) : p,
+      ),
+    });
+
+  return { workspace, activeProject, saved, commit, commitProject, updateProject };
 }

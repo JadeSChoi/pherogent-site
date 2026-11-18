@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { Button, Dialog, TextInput } from "../ui";
-import { clearOwnerKey, saveOwnerKey } from "../api/ownerKey";
+import { Button, Dialog } from "../ui";
+import { ConsentAccess } from "../api/ConsentAccess";
 import type {
   AiLabel,
   EvidenceCheck,
@@ -170,8 +170,6 @@ export function EvidenceCheckPanel({
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [preview, setPreview] = useState<{ request: CheckRequest; body: string }>();
   const [access, setAccess] = useState<CheckAccess>();
-  const [keyInput, setKeyInput] = useState("");
-  const [keyNotice, setKeyNotice] = useState<string>();
   const [runStep, setRunStep] = useState<string>();
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState<string>();
@@ -211,32 +209,7 @@ export function EvidenceCheckPanel({
     const request = buildCheckRequest(sentence, [...selected]);
     setPreview({ request, body: outgoingBody(request) });
     setAccess(undefined);
-    setKeyNotice(undefined);
     void readCheckAccess().then(setAccess);
-  };
-
-  // The owner key is kept in session storage only (issue #25): never in the
-  // workspace, so backup exports can never contain it. A rejected key is
-  // cleared rather than kept for silent retries.
-  const unlock = async () => {
-    saveOwnerKey(keyInput);
-    setKeyInput("");
-    setAccess(undefined);
-    const next = await readCheckAccess();
-    if (!next.signedIn) {
-      clearOwnerKey();
-      setKeyNotice("The key was not accepted and was not kept. Check it and try again.");
-    } else {
-      setKeyNotice(undefined);
-    }
-    setAccess(next);
-  };
-
-  const forgetKey = async () => {
-    clearOwnerKey();
-    setKeyNotice(undefined);
-    setAccess(undefined);
-    setAccess(await readCheckAccess());
   };
 
   const consent = async () => {
@@ -336,40 +309,7 @@ export function EvidenceCheckPanel({
               provider, and fetches the selected sources&rsquo; text itself:
             </p>
             <pre className="evidence-check-outgoing">{preview.body}</pre>
-            <p className="review-margin-hint" role="status">
-              {access === undefined
-                ? "Checking whether this deployment accepts a run…"
-                : access.message}
-            </p>
-            {access?.needsSignIn && (
-              <div className="evidence-check-unlock">
-                <TextInput
-                  label="Owner access key"
-                  type="password"
-                  autoComplete="off"
-                  value={keyInput}
-                  hint="Kept in this tab's session storage only — never in your workspace or its backups — and sent solely as an authorization header."
-                  onChange={(event) => setKeyInput(event.currentTarget.value)}
-                />
-                <Button disabled={!keyInput.trim()} onClick={() => void unlock()}>
-                  Unlock AI runs
-                </Button>
-              </div>
-            )}
-            {access?.signedIn && (
-              <p className="review-margin-hint">
-                Runs are unlocked with your owner key, which rides along only
-                as an authorization header on this request.{" "}
-                <Button variant="link" onClick={() => void forgetKey()}>
-                  Forget owner key
-                </Button>
-              </p>
-            )}
-            {keyNotice && (
-              <p className="review-notice" role="status">
-                {keyNotice}
-              </p>
-            )}
+            <ConsentAccess access={access} onAccess={setAccess} />
             <div className="review-actions">
               <Button onClick={() => setPreview(undefined)}>Cancel</Button>
               <Button

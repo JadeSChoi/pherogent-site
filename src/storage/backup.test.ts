@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { exportBackup, importBackup } from "./backup";
 import { createProject, createWorkspace, withManuscriptUpdate, withNotebookUpdate, withSavedSource, withSectionUpdate, withSourceUpdate } from "./workspace";
+import {
+  withActiveStage,
+  withAiReply,
+  withContextEdited,
+  withDraftEdited,
+  withDraftReviewed,
+} from "../chat/sectionChat";
 import v2MultiProject from "./fixtures/v2-multi-project.json";
 import v2WithRecovery from "./fixtures/v2-with-recovery.json";
 
@@ -22,6 +29,42 @@ describe("importBackup", () => {
     const result = importBackup(exportBackup(workspace));
 
     expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("round-trips the Section chat with its conversations, drafts, and context", () => {
+    const workspace = createWorkspace();
+    let project = workspace.projects[0];
+    project = withAiReply(project, "methods", {
+      runId: "run-1",
+      text: "A structure for the protocol.",
+      suggestedDraft: { title: "Methods", body: "Mice were perfused…" },
+    });
+    project = withDraftEdited(project, "methods", {
+      title: "Methods",
+      body: "Working draft.",
+    });
+    project = withDraftReviewed(project, "methods");
+    project = withContextEdited(project, "methods", "Cohort: 12 mice.");
+    project = withActiveStage(project, "methods");
+    workspace.projects[0] = project;
+
+    const result = importBackup(exportBackup(workspace));
+
+    expect(result).toEqual({ ok: true, workspace });
+  });
+
+  it("drops an invalid chat entry whole rather than keeping a corrupted conversation", () => {
+    const workspace = createWorkspace();
+    const raw = JSON.parse(exportBackup(workspace)) as {
+      projects: Record<string, unknown>[];
+    };
+    raw.projects[0].chat = {
+      activeStage: "nonsense",
+      sections: { methods: { messages: "not-a-list", draft: {}, context: 3 } },
+    };
+    const result = importBackup(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.workspace.projects[0].chat).toBeUndefined();
   });
 
   it("round-trips review passes with their sentences and decisions", () => {

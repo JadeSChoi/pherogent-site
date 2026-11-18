@@ -17,7 +17,13 @@ import type {
   SavedSource,
 } from "../storage/workspace";
 import { AI_LABELS } from "../storage/workspace";
-import { apiFetch } from "../api/ownerKey";
+import { AiRunError, runAiRoute } from "../api/aiRun";
+
+// The access read and the error class are shared by every consented AI
+// surface now (issue #12); re-exported here so this module stays the one
+// import for the Evidence check flow.
+export { readCheckAccess, type CheckAccess } from "../api/access";
+export { AiRunError as EvidenceCheckError };
 
 /** The server accepts at most three explicitly selected sources per check. */
 export const MAX_CHECK_SOURCES = 3;
@@ -38,15 +44,6 @@ export type CheckRequest = {
   citedPaperIds: string[];
   studyDesign: true;
 };
-
-export class EvidenceCheckError extends Error {
-  code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "EvidenceCheckError";
-    this.code = code;
-  }
-}
 
 /** Saved sources whose ids the server can resolve as cited sources. */
 export function checkableSources(project: Project): SavedSource[] {
@@ -97,161 +94,34 @@ export function outgoingBody(request: CheckRequest): string {
   return JSON.stringify(request, null, 2);
 }
 
-/** Whether this deployment will accept a run, with the server's message.
- * needsSignIn means the owner access key is the one thing missing;
- * signedIn means the saved key was accepted. */
-export type CheckAccess = {
-  canRun: boolean;
-  message: string;
-  needsSignIn: boolean;
-  signedIn: boolean;
-};
-
-/** Whether the deployment will accept a run right now, with the server's
- * own message. The status call also establishes the visitor session the
- * check route requires, and — through apiFetch — carries the saved owner
- * key, so it doubles as the key's validity check. */
-export async function readCheckAccess({
-  fetchImpl = apiFetch,
-}: { fetchImpl?: typeof fetch } = {}): Promise<CheckAccess> {
-  try {
-    const response = await fetchImpl("/api/agent/status");
-    const status = (await response.json()) as {
-      canRun?: boolean;
-      message?: string;
-      needsSignIn?: boolean;
-      signedIn?: boolean;
-    };
-    return {
-      canRun: status.canRun === true,
-      message:
-        typeof status.message === "string" && status.message
-          ? status.message
-          : "The AI connection did not report a status message.",
-      needsSignIn: status.needsSignIn === true,
-      signedIn: status.signedIn === true,
-    };
-  } catch {
-    return {
-      canRun: false,
-      message: "The AI connection could not be reached. No request was sent.",
-      needsSignIn: false,
-      signedIn: false,
-    };
-  }
+/**
+ * POSTs the previewed request to /api/check-claim through the shared NDJSON
+ * run client. Only outgoingBody(request) crosses the wire.
+ */
+export function runEvidenceCheck(
+  request: CheckRequest,
+  {
+    fetchImpl,
+    signal,
+    onStep,
+  }: {
+    fetchImpl?: typeof fetch;
+    signal?: AbortSignal;
+    /** Called with each progress step's detail line as the server reports it. */
+    onStep?: (detail: string) => void;
+  } = {},
+): Promise<{ runId: string | null; result: Record<string, unknown> }> {
+  return runAiRoute("/api/check-claim", outgoingBody(request), {
+    subject: "AI check",
+    failureCode: "check_failed",
+    fetchImpl,
+    signal,
+    onStep,
+  });
 }
-
-type RunOptions = {
-  fetchImpl?: typeof fetch;
-  signal?: AbortSignal;
-  /** Called with each progress step's detail line as the server reports it. */
-  onStep?: (detail: string) => void;
-};
-
-type StreamEvent = {
-  type?: string;
-  runId?: string;
-  step?: { detail?: string };
-  result?: Record<string, unknown>;
-  error?: { code?: string; message?: string };
-};
 
 const isRecord = (x: unknown): x is Record<string, unknown> =>
   !!x && typeof x === "object" && !Array.isArray(x);
-
-function codedError(value: unknown, fallback: string): EvidenceCheckError {
-  const error = isRecord(value) ? value : {};
-  return new EvidenceCheckError(
-    typeof error.code === "string" && error.code ? error.code : fallback,
-    typeof error.message === "string" && error.message
-      ? error.message
-      : "The AI check could not finish safely.",
-  );
-}
-
-/**
- * POSTs the previewed request to /api/check-claim and reads the NDJSON
- * stream incrementally to its terminal result or error event, reporting
- * progress steps as they arrive. Only outgoingBody(request) crosses the
- * wire; a stream that ends without a terminal event is an interruption,
- * never a result.
- */
-export async function runEvidenceCheck(
-  request: CheckRequest,
-  { fetchImpl = apiFetch, signal, onStep }: RunOptions = {},
-): Promise<{ runId: string | null; result: Record<string, unknown> }> {
-  let response: Response;
-  try {
-    response = await fetchImpl("/api/check-claim", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: outgoingBody(request),
-      signal,
-    });
-  } catch {
-    throw new EvidenceCheckError(
-      "connection_failed",
-      "The AI check request could not be sent. Check the connection and try again with a new preview.",
-    );
-  }
-  // A refusal before any run starts arrives as one JSON error object.
-  if (!response.ok) {
-    let refusal: unknown;
-    try {
-      refusal = JSON.parse(await response.text());
-    } catch {
-      throw new EvidenceCheckError(
-        "check_failed",
-        "The AI check was refused before it started.",
-      );
-    }
-    throw codedError(isRecord(refusal) ? refusal.error : undefined, "check_failed");
-  }
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new EvidenceCheckError(
-      "stream_interrupted",
-      "The AI check stream ended before a result arrived. Its allowance may remain reserved; no result was invented.",
-    );
-  }
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let runId: string | null = null;
-  const handle = (line: string): { result: Record<string, unknown> } | undefined => {
-    if (!line.trim()) return;
-    let event: StreamEvent;
-    try {
-      event = JSON.parse(line) as StreamEvent;
-    } catch {
-      return;
-    }
-    if (event.type === "start" && typeof event.runId === "string") runId = event.runId;
-    if (event.type === "step" && typeof event.step?.detail === "string") {
-      onStep?.(event.step.detail);
-    }
-    if (event.type === "result" && isRecord(event.result)) return { result: event.result };
-    if (event.type === "error") throw codedError(event.error, "check_failed");
-  };
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = done ? "" : (lines.pop() ?? "");
-      for (const line of lines) {
-        const terminal = handle(line);
-        if (terminal) return { runId, result: terminal.result };
-      }
-      if (done) break;
-    }
-  } finally {
-    void reader.cancel().catch(() => {});
-  }
-  throw new EvidenceCheckError(
-    "stream_interrupted",
-    "The AI check stream ended before a result arrived. Its allowance may remain reserved; no result was invented.",
-  );
-}
 
 const strings = (x: unknown): string[] =>
   Array.isArray(x) ? x.filter((item): item is string => typeof item === "string") : [];

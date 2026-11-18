@@ -53,6 +53,12 @@ function Harness({ initial }: { initial?: Workspace }) {
           projects: w.projects.map((p) => (p.id === next.id ? next : p)),
         }))
       }
+      updateProject={(projectId, mutate) =>
+        setWorkspace((w) => ({
+          ...w,
+          projects: w.projects.map((p) => (p.id === projectId ? mutate(p) : p)),
+        }))
+      }
     />
   );
 }
@@ -81,6 +87,7 @@ describe("AppShell", () => {
       "Overview",
       "Library2",
       "Manuscript4 words",
+      "Section chat",
       "Usage",
     ]);
     expect(screen.queryByRole("link", { name: /Evidence/ })).toBeNull();
@@ -109,6 +116,14 @@ describe("AppShell", () => {
       screen.getByRole("complementary", { name: "Evidence review" }),
     ).toBeTruthy();
     expect(screen.getByText("Notebook")).toBeTruthy();
+  });
+
+  it("opens the Section chat from the rail", () => {
+    render(<Harness />);
+    const rail = screen.getByRole("complementary");
+    fireEvent.click(within(rail).getByRole("link", { name: /Section chat/ }));
+    expect(screen.getByRole("navigation", { name: "Sections" })).toBeTruthy();
+    expect(window.location.pathname).toBe("/chat");
   });
 
   it("opens the usage meter from the rail", async () => {

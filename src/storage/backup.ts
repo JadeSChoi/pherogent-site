@@ -1,5 +1,16 @@
 import type { Paper } from "../library/europePmc";
 import {
+  MAX_CHAT_MESSAGES,
+  MAX_DRAFT_HISTORY,
+  type ChatDraft,
+  type ChatMessage,
+  type Conversation,
+  type DraftSnapshot,
+  type ProjectChat,
+  type SuggestedDraft,
+} from "../chat/sectionChat";
+import { CHAT_SECTIONS } from "../chat/stages";
+import {
   AI_LABELS,
   ASSESSMENTS,
   DECISION_TYPES,
@@ -320,6 +331,112 @@ function parseReviews(list: unknown, single: unknown): Review[] | null {
   return passes.length ? passes : null;
 }
 
+const CHAT_AUTHORS = ["author", "ai"] as const;
+const CHAT_KINDS = ["live", "prepared"] as const;
+
+function parseChatMessage(x: unknown): ChatMessage | null {
+  if (!isRecord(x)) return null;
+  const { id, author, kind, text, at, runId, suggestedDraft } = x;
+  if (
+    typeof id !== "string" ||
+    !id ||
+    !CHAT_AUTHORS.includes(author as (typeof CHAT_AUTHORS)[number]) ||
+    !CHAT_KINDS.includes(kind as (typeof CHAT_KINDS)[number]) ||
+    typeof text !== "string" ||
+    typeof at !== "string"
+  ) {
+    return null;
+  }
+  const draft = parseSuggestedDraft(suggestedDraft);
+  if (draft === undefined) return null;
+  return {
+    id,
+    author: author as ChatMessage["author"],
+    kind: kind as ChatMessage["kind"],
+    text,
+    at,
+    runId: typeof runId === "string" ? runId : null,
+    suggestedDraft: draft,
+  };
+}
+
+/** null and a valid draft parse to themselves; undefined means invalid. */
+function parseSuggestedDraft(x: unknown): SuggestedDraft | null | undefined {
+  if (x === null || x === undefined) return null;
+  if (!isRecord(x) || typeof x.title !== "string" || typeof x.body !== "string") {
+    return undefined;
+  }
+  return { title: x.title, body: x.body };
+}
+
+function parseChatDraft(x: unknown): ChatDraft | null {
+  if (!isRecord(x)) return null;
+  const { title, body, reviewed, provenance, history } = x;
+  if (
+    typeof title !== "string" ||
+    typeof body !== "string" ||
+    typeof reviewed !== "boolean" ||
+    typeof provenance !== "string" ||
+    !Array.isArray(history)
+  ) {
+    return null;
+  }
+  const snapshots: DraftSnapshot[] = [];
+  for (const entry of history.slice(0, MAX_DRAFT_HISTORY)) {
+    if (
+      !isRecord(entry) ||
+      typeof entry.title !== "string" ||
+      typeof entry.body !== "string" ||
+      typeof entry.provenance !== "string" ||
+      typeof entry.at !== "string"
+    ) {
+      return null;
+    }
+    snapshots.push({
+      title: entry.title,
+      body: entry.body,
+      provenance: entry.provenance,
+      at: entry.at,
+    });
+  }
+  return { title, body, reviewed, provenance, history: snapshots };
+}
+
+function parseConversation(x: unknown): Conversation | null {
+  if (!isRecord(x) || !Array.isArray(x.messages) || typeof x.context !== "string") {
+    return null;
+  }
+  const messages: ChatMessage[] = [];
+  for (const entry of x.messages.slice(-MAX_CHAT_MESSAGES)) {
+    const message = parseChatMessage(entry);
+    if (!message) return null;
+    messages.push(message);
+  }
+  const draft = parseChatDraft(x.draft);
+  if (!draft) return null;
+  return { messages, draft, context: x.context };
+}
+
+/**
+ * Reads a project's Section chat state. Chat state is working material, not
+ * an evidence record, so a corrupted chat is dropped whole rather than
+ * reconstructed — the original remains under the import's source text.
+ */
+function parseChat(x: unknown): ProjectChat | null {
+  if (!isRecord(x) || !isRecord(x.sections)) return null;
+  const activeStage = CHAT_SECTIONS.find((section) => section.id === x.activeStage)?.id;
+  if (!activeStage) return null;
+  const sections: ProjectChat["sections"] = {};
+  for (const [stage, entry] of Object.entries(x.sections)) {
+    const id = CHAT_SECTIONS.find((section) => section.id === stage)?.id;
+    if (!id) return null;
+    const conversation = parseConversation(entry);
+    if (!conversation) return null;
+    sections[id] = conversation;
+  }
+  return { activeStage, sections };
+}
+
 function parseProject(x: unknown): Project | null {
   if (!isRecord(x)) return null;
   const { id, name, question, createdAt } = x;
@@ -350,6 +467,8 @@ function parseProject(x: unknown): Project | null {
       .filter((run): run is EvidenceRun => run !== null);
     if (runs.length) project.evidenceRuns = runs;
   }
+  const chat = parseChat(x.chat);
+  if (chat) project.chat = chat;
   if ("legacy" in x) project.legacy = x.legacy;
   return project;
 }

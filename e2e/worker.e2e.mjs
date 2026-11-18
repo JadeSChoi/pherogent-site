@@ -76,6 +76,34 @@ const fakeProvider = (model) => ({
   },
 });
 
+// The Section chat (#12) runs through the real runSectionReply pipeline —
+// validation, token bounds, strict output checks — against this provider,
+// injected via the route's createProvider seam. The echoed message proves
+// the reply came from the consented request.
+export const E2E_CHAT_DRAFT = {
+  title: "Methods",
+  body: "Mice were perfused with fixative following the supplied protocol. [detail needed: perfusion pressure]",
+};
+
+const fakeChatProvider = ({ model }) => ({
+  model,
+  estimateInputTokens: () => 2000,
+  async complete({ name, input }) {
+    if (name !== "pherogent_section_reply") {
+      throw new Error("The section chat must not call " + name);
+    }
+    const { stage, message } = JSON.parse(input).untrusted_data;
+    return {
+      inputTokens: 200,
+      outputTokens: 100,
+      value: {
+        reply: `For the ${stage} section, on "${message}": describe only what was done.`,
+        suggestedDraft: E2E_CHAT_DRAFT,
+      },
+    };
+  },
+});
+
 const dependencies = {
   runResearch: (options) =>
     runResearch({
@@ -83,6 +111,7 @@ const dependencies = {
       provider: fakeProvider(options.model),
       fetchImpl: fakeEuropePmc,
     }),
+  createProvider: fakeChatProvider,
 };
 
 export default {

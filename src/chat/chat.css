@@ -1,0 +1,308 @@
+/* Section chat (issue #12) in the Folio direction (ADR 0003): a proof-sheet
+   conversation. The picker is a table of contents, the thread is set like
+   correspondence with speaker attributions hanging in the margin, and the
+   working draft is a proof sheet beside it. Hairline rules, no cards; color
+   never marks the product, only evidence states elsewhere. */
+
+.chat-surface {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr) 17rem;
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* ---- picker: a contents list with progress notes ---- */
+
+.chat-picker {
+  display: grid;
+  gap: var(--space-4);
+  position: sticky;
+  top: var(--space-4);
+}
+
+.chat-picker-group {
+  display: grid;
+  gap: 0;
+}
+
+.chat-picker-heading {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+}
+
+.chat-picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: var(--space-2) var(--space-2);
+  border: none;
+  border-left: 2px solid transparent;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--color-ink-soft);
+}
+
+.chat-picker-item:hover {
+  background: var(--color-wash);
+}
+
+.chat-picker-item[aria-current="true"] {
+  border-left-color: var(--color-ink);
+  color: var(--color-ink);
+  background: var(--color-wash);
+}
+
+.chat-picker-label {
+  font-size: var(--text-sm);
+}
+
+.chat-picker-item[aria-current="true"] .chat-picker-label {
+  font-weight: 600;
+}
+
+.chat-picker-note {
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+}
+
+/* ---- thread: correspondence on the page ---- */
+
+.chat-thread {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.chat-thread-head {
+  border-bottom: 1px solid var(--color-rule-strong);
+  padding-bottom: var(--space-3);
+}
+
+.chat-thread-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.chat-thread-sub {
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+
+.chat-empty {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-reading);
+  font-style: italic;
+  color: var(--color-ink-soft);
+  max-width: 55ch;
+  line-height: 1.6;
+}
+
+.chat-messages {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* The speaker hangs in a narrow margin column, like a script. */
+.chat-message {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.chat-speaker {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  padding-top: 3px;
+}
+
+.chat-message-ai .chat-speaker {
+  color: var(--color-mute);
+  font-weight: 400;
+}
+
+.chat-message-body {
+  display: grid;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-rule);
+  padding-bottom: var(--space-4);
+}
+
+.chat-message-text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-reading);
+  line-height: 1.65;
+  max-width: 62ch;
+  white-space: pre-wrap;
+}
+
+.chat-message-meta {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+}
+
+/* A proposed draft inside a reply: quoted matter, offset like a source
+   passage, waiting on the author. */
+.chat-suggestion {
+  display: grid;
+  gap: var(--space-2);
+  border-left: 2px solid var(--color-rule-strong);
+  background: var(--color-wash);
+  padding: var(--space-3);
+  justify-items: start;
+}
+
+.chat-suggestion-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+
+.chat-suggestion-body {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.chat-pending {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+/* ---- composer ---- */
+
+.chat-composer {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.chat-context summary {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+  cursor: pointer;
+  padding: var(--space-1) 0;
+}
+
+.chat-context[open] summary {
+  color: var(--color-ink-soft);
+}
+
+.chat-composer-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.chat-composer-hint {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+}
+
+/* ---- working draft: the proof sheet ---- */
+
+.chat-draft {
+  display: grid;
+  gap: var(--space-3);
+  border-left: 1px solid var(--color-rule);
+  padding-left: var(--space-5);
+  position: sticky;
+  top: var(--space-4);
+}
+
+.chat-draft-label {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  border-bottom: 1px solid var(--color-rule);
+  padding-bottom: var(--space-1);
+}
+
+.chat-draft textarea {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.chat-draft-meta {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+  line-height: 1.5;
+}
+
+.chat-draft-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.chat-draft-hint {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--color-mute);
+  line-height: 1.5;
+}
+
+/* ---- narrow widths: one column, picker first ---- */
+
+@media (max-width: 960px) {
+  .chat-surface {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .chat-picker {
+    position: static;
+  }
+
+  .chat-picker-group {
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  }
+
+  .chat-picker-heading {
+    grid-column: 1 / -1;
+  }
+
+  .chat-draft {
+    position: static;
+    border-left: none;
+    border-top: 1px solid var(--color-rule);
+    padding-left: 0;
+    padding-top: var(--space-4);
+  }
+}

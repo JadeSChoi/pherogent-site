@@ -6,6 +6,7 @@ describe("routeFromPath", () => {
     expect(routeFromPath("/")).toBe("overview");
     expect(routeFromPath("/library")).toBe("library");
     expect(routeFromPath("/manuscript")).toBe("manuscript");
+    expect(routeFromPath("/chat")).toBe("chat");
     expect(routeFromPath("/usage")).toBe("usage");
   });
 

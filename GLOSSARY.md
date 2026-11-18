@@ -72,6 +72,18 @@ _Avoid_: stale (reserved for review passes), expired, invalidated
 Re-attaching a recorded Evidence check to a sentence whose text and cited sources are unchanged since that run. Reopening is bookkeeping: no model call is made and nothing is spent.
 _Avoid_: re-running (a new consented run), restoring
 
+**Section chat**:
+The per-Project chat surface: one picker over eleven writing sections (chat stages), each keeping its own conversation, working draft, and context note. The server derives the role from the section id; clients never supply prompts, models, or budgets, and nothing is sent without consent on the exact outgoing message and bounded context.
+_Avoid_: agent studio (the legacy name), assistant
+
+**Working draft (chat)**:
+A chat section's own draft, separate from the Manuscript. Applying a suggestion preserves the prior version in its history and clears the reviewed mark; only a reviewed draft may be appended to the Manuscript, always as a new Section.
+_Avoid_: output (ambiguous), suggestion (that's the unapplied proposal)
+
+**Prepared example**:
+A prewritten per-section exchange loadable with zero AI calls, labeled as prepared throughout. It demonstrates the chat and draft flow; it is never an AI response.
+_Avoid_: demo reply, sample output
+
 **Quote match**:
 The code-only check that a passage the author pasted appears verbatim (whitespace aside) in a saved source's text. It checks text, not scientific support.
 _Avoid_: verification, evidence match
