@@ -1,5 +1,19 @@
-/* The Notebook is a writing surface with sans field chrome (Folio): the
-   fields themselves come from src/ui, hints and statuses stay quiet. */
+/* The Notebook is a writing surface with sans field chrome (Folio): a
+   ruled page section, not a card; the fields themselves come from
+   src/ui, hints and statuses stay quiet. */
+
+.notebook-page {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-ink);
+}
+
+.notebook-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
 
 .notebook-hint {
   margin: 0 0 var(--space-4);

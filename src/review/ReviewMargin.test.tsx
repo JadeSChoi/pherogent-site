@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Paper } from "../library/europePmc";
+import { ManuscriptPanel } from "../manuscript/ManuscriptPanel";
 import { createProject, type Project } from "../storage/workspace";
-import { ReviewPanel } from "./ReviewPanel";
 
 const ABSTRACT =
   "Visual function improved in aged mice after reprogramming. " +
@@ -39,37 +39,18 @@ function projectFixture(sectionText: string): Project {
 
 function Harness({ initial }: { initial: Project }) {
   const [project, setProject] = useState(initial);
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() =>
-          setProject((current) => ({
-            ...current,
-            manuscript: {
-              ...current.manuscript!,
-              sections: current.manuscript!.sections.map((section) => ({
-                ...section,
-                text: section.text + " An edit from the manuscript.",
-              })),
-            },
-          }))
-        }
-      >
-        Edit section elsewhere
-      </button>
-      <ReviewPanel project={project} onProjectChange={setProject} />
-    </>
-  );
+  return <ManuscriptPanel project={project} onProjectChange={setProject} />;
 }
 
 const field = (label: string) =>
   screen.getByLabelText(label) as HTMLInputElement | HTMLTextAreaElement;
 
+const margin = () => screen.getByRole("complementary", { name: "Evidence review" });
+
 const prepare = () =>
   fireEvent.click(screen.getByRole("button", { name: "Prepare sentences for review" }));
 
-/** Stages a complete supports-assessment on the first sentence. */
+/** Stages a complete supports-assessment on the first (selected) sentence. */
 function stageSupports(quote = "Visual function improved in aged mice") {
   prepare();
   fireEvent.change(field("Source to check against"), { target: { value: "MED:1" } });
@@ -84,8 +65,8 @@ beforeEach(() => {
   });
 });
 
-describe("ReviewPanel", () => {
-  it("prepares the section's sentences and lists them", () => {
+describe("the review flow in the proof-sheet margin", () => {
+  it("prepares a section into proof sentences and opens the first in the margin", () => {
     render(
       <Harness
         initial={projectFixture(
@@ -96,12 +77,14 @@ describe("ReviewPanel", () => {
     prepare();
     expect(
       screen.getByRole("button", {
-        name: /Reprogramming restored visual function in aged mice\./,
+        name: "Reprogramming restored visual function in aged mice.",
       }),
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: /The effect size was small overall\./ }),
+      screen.getByRole("button", { name: "The effect size was small overall." }),
     ).toBeTruthy();
+    // The first sentence's review controls open in the margin.
+    expect(within(margin()).getByLabelText("Source to check against")).toBeTruthy();
   });
 
   it("reports a code-only match for an exact pasted passage, and no match for a paraphrase", () => {
@@ -133,8 +116,9 @@ describe("ReviewPanel", () => {
     fireEvent.change(field("Evidence passage"), {
       target: { value: "Visual function improved in aged mice" },
     });
-    const approve = () => screen.getByRole("button", { name: /Approve citation|Record your decision/ });
-    expect(approve().hasAttribute("disabled")).toBe(true);
+    const decide = () =>
+      screen.getByRole("button", { name: /Approve citation|Record your decision/ });
+    expect(decide().hasAttribute("disabled")).toBe(true);
     fireEvent.change(field("Your assessment"), { target: { value: "supports" } });
     expect(screen.queryByText("Approved by author")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Approve citation" }));
@@ -166,35 +150,59 @@ describe("ReviewPanel", () => {
     expect(screen.getByText("Approved by author")).toBeTruthy();
   });
 
-  it("carries a decision across batches and quietly notes changed context", () => {
+  it("pauses that section's review when its text is edited", () => {
+    render(
+      <Harness
+        initial={projectFixture("Reprogramming restored visual function in aged mice.")}
+      />,
+    );
+    prepare();
+    fireEvent.click(screen.getByRole("button", { name: "Edit text" }));
+    fireEvent.change(field("Section 1 text"), {
+      target: { value: "Rewritten entirely by the author." },
+    });
+    expect(screen.getByText(/section changed/i)).toBeTruthy();
+    expect(screen.queryByLabelText("Evidence passage")).toBeNull();
+  });
+
+  it("opens the next undecided sentence's controls after a decision", () => {
     render(
       <Harness
         initial={projectFixture(
-          "First sentence is long enough here. Second sentence is also long enough.",
+          "Reprogramming restored visual function in aged mice. The effect size was small overall.",
         )}
       />,
     );
     prepare();
-    fireEvent.click(
-      screen.getByRole("button", { name: /Second sentence is also long enough\./ }),
-    );
     fireEvent.change(field("Source to check against"), { target: { value: "MED:1" } });
     fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
-    expect(screen.getByText("Original wording kept")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Edit section elsewhere" }));
-    prepare();
-    expect(screen.getByText("Original kept")).toBeTruthy();
-    expect(screen.getByText("Context changed")).toBeTruthy();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: /Second sentence is also long enough\./ }),
-    );
-    expect(screen.getByText("Original wording kept")).toBeTruthy();
-    expect(screen.getByText(/re-read the surrounding wording/)).toBeTruthy();
+    expect(within(margin()).getByText("Original wording kept")).toBeTruthy();
+    // The second sentence's editor opened by itself, as the panel did.
+    expect(within(margin()).getByLabelText("Source to check against")).toBeTruthy();
   });
 
-  it("keeps each Section's pass and decisions when the author reviews another Section", () => {
+  it("carries decisions across re-preparation and quietly notes changed context", () => {
+    render(<Harness initial={projectFixture("First sentence is long enough here.")} />);
+    prepare();
+    fireEvent.change(field("Source to check against"), { target: { value: "MED:1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
+    expect(within(margin()).getByText("Original wording kept")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit text" }));
+    fireEvent.change(field("Section 1 text"), {
+      target: {
+        value:
+          "First sentence is long enough here. A second sentence appears afterwards.",
+      },
+    });
+    prepare();
+    expect(within(margin()).getByText("Original wording kept")).toBeTruthy();
+    expect(
+      within(margin()).getByText(/Context changed since this decision/),
+    ).toBeTruthy();
+  });
+
+  it("keeps each Section's decisions in the margin while reviewing another Section", () => {
     const base = projectFixture("First sentence is long enough here.");
     const withMethods: Project = {
       ...base,
@@ -211,39 +219,19 @@ describe("ReviewPanel", () => {
       },
     };
     render(<Harness initial={withMethods} />);
-    prepare();
+    const [prepareFirst, prepareSecond] = screen.getAllByRole("button", {
+      name: "Prepare sentences for review",
+    });
+    fireEvent.click(prepareFirst);
     fireEvent.change(field("Source to check against"), { target: { value: "MED:1" } });
     fireEvent.click(screen.getByRole("button", { name: "Keep original" }));
-    expect(screen.getByText("Original wording kept")).toBeTruthy();
+    expect(within(margin()).getByText("Original wording kept")).toBeTruthy();
 
-    // Review the Methods Section; the first Section's decision survives.
-    fireEvent.change(field("Section to review"), {
-      target: { value: "section-methods" },
-    });
-    prepare();
-    expect(
-      screen.getByRole("button", { name: /We measured axon density/ }),
-    ).toBeTruthy();
-    expect(screen.queryByText("Original wording kept")).toBeNull();
-
-    const sectionPicker = screen.getByLabelText(
-      "Section to review",
-    ) as HTMLSelectElement;
-    fireEvent.change(sectionPicker, {
-      target: { value: sectionPicker.options[0].value },
-    });
-    expect(screen.getByText("Original kept")).toBeTruthy();
-  });
-
-  it("pauses the review when the section text changes elsewhere", () => {
-    render(
-      <Harness
-        initial={projectFixture("Reprogramming restored visual function in aged mice.")}
-      />,
-    );
-    prepare();
-    fireEvent.click(screen.getByRole("button", { name: "Edit section elsewhere" }));
-    expect(screen.getByText(/section changed/i)).toBeTruthy();
-    expect(screen.queryByLabelText("Evidence passage")).toBeNull();
+    fireEvent.click(prepareSecond);
+    // Both Sections' notes are in the margin: the kept decision and the
+    // newly opened editor, grouped under their section labels.
+    expect(within(margin()).getByText("Original wording kept")).toBeTruthy();
+    expect(within(margin()).getByText("Methods")).toBeTruthy();
+    expect(within(margin()).getByLabelText("Source to check against")).toBeTruthy();
   });
 });

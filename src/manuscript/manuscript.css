@@ -44,6 +44,9 @@
   font-weight: 500;
   letter-spacing: -0.01em;
   margin-bottom: var(--space-4);
+  line-height: 1.2;
+  resize: none;
+  field-sizing: content;
 }
 
 .manuscript-heading {
@@ -90,4 +93,89 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* The proof-sheet (issue #21): the reading column beside the evidence
+   margin, separated by a hairline — one continuous document, not cards. */
+
+.proof-doc {
+  display: grid;
+  grid-template-columns: minmax(0, 44rem) minmax(16rem, 22rem);
+  gap: var(--space-4) var(--space-7);
+  align-items: start;
+}
+
+.proof-margin {
+  border-left: 1px solid var(--color-rule-strong);
+  padding-left: var(--space-5);
+  min-width: 0;
+}
+
+/* A prepared Section reads as proof text: the exact section text with
+   each prepared sentence underlined by its evidence state. */
+.proof-section-text {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-reading);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.proof-s {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.proof-s:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* Quiet marks for settled states; stronger color only where the
+   evidence stands unresolved (ADR 0003). */
+.proof-s-approve {
+  border-bottom: 1px solid var(--color-ok-faint);
+}
+
+.proof-s-keep {
+  border-bottom: 2px solid var(--color-warn);
+}
+
+.proof-s-flag {
+  border-bottom: 2px solid var(--color-bad);
+}
+
+.proof-s-unchecked {
+  border-bottom: 2px dotted var(--color-mute);
+}
+
+.proof-s[aria-pressed="true"] {
+  background: var(--color-wash-strong);
+}
+
+.proof-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 920px) {
+  .proof-doc {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .proof-margin {
+    border-left: 0;
+    border-top: 1px solid var(--color-rule);
+    padding-left: 0;
+    padding-top: var(--space-4);
+  }
 }

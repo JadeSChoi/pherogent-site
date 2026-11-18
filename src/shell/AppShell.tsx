@@ -1,7 +1,6 @@
 import { Library } from "../library/Library";
 import { ManuscriptPanel } from "../manuscript/ManuscriptPanel";
 import { NotebookPanel } from "../notebook/NotebookPanel";
-import { ReviewPanel } from "../review/ReviewPanel";
 import { manuscriptWordCount } from "../storage/workspace";
 import { Nav, type NavItem } from "../ui";
 import { WorkspaceControls } from "../workspace/WorkspaceControls";
@@ -50,7 +49,6 @@ export function AppShell(state: WorkspaceState) {
     manuscript: (
       <>
         <ManuscriptPanel project={activeProject} onProjectChange={commitProject} />
-        <ReviewPanel project={activeProject} onProjectChange={commitProject} />
         <NotebookPanel project={activeProject} onProjectChange={commitProject} />
       </>
     ),

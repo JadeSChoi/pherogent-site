@@ -104,7 +104,9 @@ describe("AppShell", () => {
     fireEvent.click(within(rail).getByRole("link", { name: /Manuscript/ }));
     expect(window.location.pathname).toBe("/manuscript");
     expect(screen.getByLabelText("Document title")).toBeTruthy();
-    expect(screen.getByText("Evidence review")).toBeTruthy();
+    expect(
+      screen.getByRole("complementary", { name: "Evidence review" }),
+    ).toBeTruthy();
     expect(screen.getByText("Notebook")).toBeTruthy();
   });
 

@@ -119,6 +119,91 @@ test("a manuscript larger than the old 12,000-character cap writes, exports, and
   );
 });
 
+test("the review flow runs from the proof-sheet margin and survives reload", async ({
+  page,
+}) => {
+  // A saved source to review against, seeded the way the app stores it.
+  // Init scripts rerun on reload, so seed only an empty store — the test
+  // relies on the author's decisions surviving the reload.
+  await page.addInitScript(() => {
+    if (localStorage.getItem("pherogent-workspace-v3")) return;
+    localStorage.setItem(
+      "pherogent-workspace-v3",
+      JSON.stringify({
+        version: 3,
+        activeProjectId: "project-e2e",
+        projects: [
+          {
+            id: "project-e2e",
+            name: "Margin flow",
+            question: "",
+            createdAt: "2026-11-17T00:00:00.000Z",
+            sources: [
+              {
+                paper: {
+                  id: "MED:1",
+                  source: "MED",
+                  title: "A measured mouse outcome",
+                  authors: ["Author A"],
+                  year: 2020,
+                  journal: "Journal",
+                  doi: "",
+                  pmid: "",
+                  pmcid: "",
+                  url: "https://europepmc.org/article/MED/1",
+                  abstract:
+                    "Visual function improved in aged mice after reprogramming.",
+                  openAccess: false,
+                },
+                note: "",
+                status: "useful",
+                savedAt: "2026-11-17T00:00:00.000Z",
+              },
+            ],
+            manuscript: {
+              title: "",
+              sections: [
+                {
+                  id: "section-e2e",
+                  heading: "",
+                  text: "Reprogramming restored visual function in aged mice.",
+                },
+              ],
+            },
+          },
+        ],
+      }),
+    );
+  });
+  await page.goto("/manuscript");
+  await page.getByRole("button", { name: "Prepare sentences for review" }).click();
+
+  // The section renders as proof text; the sentence opens in the margin.
+  const sentence = page.getByRole("button", {
+    name: "Reprogramming restored visual function in aged mice.",
+  });
+  await expect(sentence).toBeVisible();
+  const reviewMargin = page.getByRole("complementary", { name: "Evidence review" });
+  await reviewMargin
+    .getByLabel("Source to check against")
+    .selectOption({ label: "A measured mouse outcome" });
+
+  // Keeping the original records an explicit decision as a margin note.
+  await reviewMargin.getByRole("button", { name: "Keep original" }).click();
+  await expect(reviewMargin.getByText("Original wording kept")).toBeVisible();
+
+  await page.reload();
+  await expect(
+    page.getByRole("complementary", { name: "Evidence review" }).getByText(
+      "Original wording kept",
+    ),
+  ).toBeVisible();
+
+  // Undo reopens the sentence for review.
+  await page.getByRole("button", { name: "Undo decision" }).click();
+  await expect(page.getByText("Original wording kept")).toHaveCount(0);
+});
+
 test("importing a Markdown file splits headings into sections after confirmation", async ({
   page,
 }) => {

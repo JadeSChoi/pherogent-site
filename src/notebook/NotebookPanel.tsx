@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Panel, TextArea } from "../ui";
+import { Button, TextArea } from "../ui";
 import {
   MANUSCRIPT_GUARD,
   appendNotebookToManuscript,
@@ -68,7 +68,8 @@ export function NotebookPanel({ project, onProjectChange }: NotebookPanelProps) 
   };
 
   return (
-    <Panel title="Notebook">
+    <section className="notebook-page" aria-label="Notebook">
+      <h2 className="notebook-title">Notebook</h2>
       <p className="notebook-hint">
         Your findings, working hypotheses and open questions for {project.name}.
         Hypotheses and proposed tests are not findings.
@@ -98,6 +99,6 @@ export function NotebookPanel({ project, onProjectChange }: NotebookPanelProps) 
         {appendMessage ??
           "Adding notes appends your findings and limitations to the manuscript; existing manuscript text is never changed."}
       </p>
-    </Panel>
+    </section>
   );
 }
