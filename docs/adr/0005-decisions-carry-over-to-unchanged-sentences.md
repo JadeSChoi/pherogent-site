@@ -1,0 +1,10 @@
+# Decisions carry over to byte-identical sentences across review passes
+
+Issue #9 shipped the Review pass with a deliberately conservative rule: re-preparing a Section reset every decision, which left sentences beyond the five-per-pass bound unreachable (#18). We decided (issue #18) to relax the rule rather than drop the bound: on re-preparing the same Section, a sentence whose text is byte-identical and uniquely matched keeps everything including its decision, and the five-sentence cap counts undecided sentences only — a pass is all carried decided sentences plus the next five undecided in document order, so repeated preparation walks the whole Section in batches and advancing past a sentence always requires an explicit decision (Keep original counts). Exact text identity is the only guard: changed, removed, or duplicated-text sentences still reset, so a decision can never attach to different wording. The alternative — listing every sentence at once — was rejected because a 20,000-character Section would trade the focused pass for a very long queue.
+
+## Consequences
+
+- An edit elsewhere in the Section no longer voids decisions on unchanged sentences. Because surrounding context can change a sentence's meaning without changing its text, a carried decision whose immediately preceding or following sentence has changed since the decision was made shows a quiet "context changed since this decision" note — a prompt to re-read that never resets or blocks anything. The flag persists across later passes until the decision is undone or re-made.
+- A sentence whose exact text appears more than once in the Section loses its decision on re-prepare (unique match only); positional matching was rejected because attaching a decision to the wrong duplicate is the worse failure.
+- Decisions still never survive a change to their own sentence's text, and a stale pass still blocks every action until re-preparation; this ADR relaxes only what re-preparation discards.
+- Saved sources cannot drift under a decision today (abstracts are frozen at save time); if source editing or removal ever lands, decision validity against sources must be revisited.
