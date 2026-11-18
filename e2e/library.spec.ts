@@ -74,6 +74,17 @@ test("search, inspect, and save a paper with a reading note, persisted across re
   await expect(page.getByLabel("Reading note")).toHaveValue(note);
   await expect(page.getByLabel("Reading status")).toHaveValue("useful");
 
+  // The ledger's chips filter by reading status.
+  await savedRegion.getByRole("button", { name: "Useful 1" }).click();
+  await expect(savedRegion.getByText(paperTitle)).toBeVisible();
+  await savedRegion.getByRole("button", { name: "To read 0" }).click();
+  await expect(savedRegion.getByText(paperTitle)).toHaveCount(0);
+  await expect(
+    savedRegion.getByText("No saved source has this reading status yet."),
+  ).toBeVisible();
+  await savedRegion.getByRole("button", { name: "All 1" }).click();
+  await expect(savedRegion.getByText(paperTitle)).toBeVisible();
+
   // The saved source's abstract and metadata stay inspectable after saving
   // and reloading, still presented as reading material rather than a citation.
   await savedRegion.getByRole("button", { name: "Inspect" }).click();

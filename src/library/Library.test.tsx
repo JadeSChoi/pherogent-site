@@ -1,8 +1,43 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createProject, type Project } from "../storage/workspace";
+import {
+  createProject,
+  type Project,
+  type ReadingStatus,
+  type SavedSource,
+} from "../storage/workspace";
+import type { Paper } from "./europePmc";
 import { Library } from "./Library";
+
+const NAMES = ["one", "two", "three"];
+
+const savedSource = (index: number, status: ReadingStatus): SavedSource => ({
+  paper: {
+    id: `MED:${index}`,
+    source: "MED",
+    title: `Paper ${NAMES[index]}`,
+    authors: [`Author ${NAMES[index].toUpperCase()}`],
+    year: 2020 + index,
+    journal: `Journal ${NAMES[index]}`,
+    doi: "",
+    pmid: "",
+    pmcid: "",
+    url: `https://europepmc.org/article/MED/${index}`,
+    abstract: `Abstract ${NAMES[index]}.`,
+    openAccess: false,
+  } satisfies Paper,
+  note: `Note ${NAMES[index]}`,
+  status,
+  savedAt: `2026-11-1${index}T10:00:00.000Z`,
+});
+
+function projectWithSources(...statuses: ReadingStatus[]): Project {
+  return {
+    ...createProject("Vision recovery"),
+    sources: statuses.map((status, index) => savedSource(index, status)),
+  };
+}
 
 const fixtureBody = JSON.stringify({
   hitCount: 1,
@@ -134,6 +169,66 @@ describe("Library", () => {
     // Reopening a saved source still presents it as reading material,
     // not an approved citation.
     expect(within(dialog).getByText(/not an approved citation/i)).toBeTruthy();
+  });
+
+  it("filters the ledger by reading status, with counts on the chips", () => {
+    render(<Harness initial={projectWithSources("to-read", "useful", "useful")} />);
+    const saved = screen.getByRole("region", { name: "Saved sources" });
+    expect(within(saved).getByRole("button", { name: "All 3" })).toBeTruthy();
+    expect(within(saved).getByText("Paper one")).toBeTruthy();
+
+    fireEvent.click(within(saved).getByRole("button", { name: "Useful 2" }));
+    expect(within(saved).queryByText("Paper one")).toBeNull();
+    expect(within(saved).getByText("Paper two")).toBeTruthy();
+    expect(within(saved).getByText("Paper three")).toBeTruthy();
+
+    fireEvent.click(within(saved).getByRole("button", { name: "All 3" }));
+    expect(within(saved).getByText("Paper one")).toBeTruthy();
+  });
+
+  it("selects a ledger row to edit that source's note and status", () => {
+    render(<Harness initial={projectWithSources("to-read", "useful")} />);
+    const saved = screen.getByRole("region", { name: "Saved sources" });
+    // The first source is selected by default.
+    expect((screen.getByLabelText("Reading note") as HTMLTextAreaElement).value).toBe(
+      "Note one",
+    );
+
+    fireEvent.click(within(saved).getByText("Paper two"));
+    expect((screen.getByLabelText("Reading note") as HTMLTextAreaElement).value).toBe(
+      "Note two",
+    );
+    fireEvent.change(screen.getByLabelText("Reading note"), {
+      target: { value: "Rewritten note." },
+    });
+    expect((screen.getByLabelText("Reading note") as HTMLTextAreaElement).value).toBe(
+      "Rewritten note.",
+    );
+
+    fireEvent.click(within(saved).getByText("Paper one"));
+    expect((screen.getByLabelText("Reading note") as HTMLTextAreaElement).value).toBe(
+      "Note one",
+    );
+  });
+
+  it("hides the detail instead of retargeting it when the filter excludes the selection", () => {
+    render(<Harness initial={projectWithSources("to-read", "useful", "useful")} />);
+    const saved = screen.getByRole("region", { name: "Saved sources" });
+    // Paper one (to-read) is selected by default; filtering to Useful must
+    // not silently point the editor at a different source.
+    fireEvent.click(within(saved).getByRole("button", { name: "Useful 2" }));
+    expect(screen.queryByLabelText("Reading note")).toBeNull();
+    expect(
+      within(saved).getByText("Select a row to edit its note and status."),
+    ).toBeTruthy();
+
+    // Changing a status so the row leaves the active filter also hides the
+    // detail rather than rebinding it.
+    fireEvent.click(within(saved).getByText("Paper two"));
+    fireEvent.change(screen.getByLabelText("Reading status"), {
+      target: { value: "conflicting" },
+    });
+    expect(screen.queryByLabelText("Reading note")).toBeNull();
   });
 
   it("reports a failed search without inventing results", async () => {
