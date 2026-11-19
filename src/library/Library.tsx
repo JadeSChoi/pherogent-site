@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Button, Dialog, Select, TextArea, TextInput } from "../ui";
 import {
   READING_STATUSES,
@@ -46,9 +46,25 @@ export function Library({ project, onProjectChange }: LibraryProps) {
   const [searchError, setSearchError] = useState<string>();
   const [result, setResult] = useState<SearchResult>();
   const [inspected, setInspected] = useState<Paper>();
+  const [searchOpen, setSearchOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ReadingStatus | "all">("all");
   const [selectedId, setSelectedId] = useState<string>();
   const activeSearch = useRef<AbortController>(null);
+  const detailRef = useRef<HTMLElement>(null);
+  const scrollToDetail = useRef(false);
+
+  // When the author picks a row, bring the detail into view where it sits
+  // below a long table (narrow pages); block "nearest" is a no-op where
+  // the detail is already beside the ledger.
+  const selectSource = (id: string) => {
+    setSelectedId(id);
+    scrollToDetail.current = true;
+  };
+  useEffect(() => {
+    if (!scrollToDetail.current) return;
+    scrollToDetail.current = false;
+    detailRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedId]);
 
   const sources = project.sources ?? [];
   const savedIds = new Set(sources.map((source) => source.paper.id));
@@ -107,78 +123,157 @@ export function Library({ project, onProjectChange }: LibraryProps) {
           {sources.length === 1 ? "1 paper" : `${sources.length} papers`} saved
           for reading
         </p>
+        <Button
+          variant="primary"
+          className="library-add"
+          aria-expanded={searchOpen}
+          aria-controls={searchOpen ? "library-find" : undefined}
+          onClick={() => setSearchOpen(!searchOpen)}
+        >
+          Add paper
+        </Button>
       </div>
+
+      {sources.length === 0 && !searchOpen && (
+        <p className="library-hint">
+          No saved sources yet. Use Add paper to search Europe PMC.
+        </p>
+      )}
+
+      {searchOpen && (
+        // Disclosed by Add paper above; search state lives on the component,
+        // so closing and reopening never touches the ledger or the selection.
+        <section className="library-find" id="library-find" aria-label="Find papers">
+          <div className="library-find-head">
+            <h2 className="library-section-title">Find papers</h2>
+            <Button variant="link" onClick={() => setSearchOpen(false)}>
+              Close
+            </Button>
+          </div>
+          <form className="library-search-form" onSubmit={search}>
+            <TextInput
+              label="Search Europe PMC"
+              type="search"
+              maxLength={300}
+              autoFocus
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              placeholder="e.g. OSK glaucoma mice"
+              hint="Nothing is sent until you choose Search papers. Results are candidates to inspect, never automatic citations."
+            />
+            <Button variant="primary" type="submit" disabled={searching}>
+              {searching ? "Searching…" : "Search papers"}
+            </Button>
+          </form>
+          {searchError && (
+            <p className="library-search-error" role="alert">
+              {searchError}
+            </p>
+          )}
+          <div aria-live="polite">
+            {result && (
+              <>
+                <p className="library-result-count">
+                  {result.total === 0
+                    ? "No matching records on Europe PMC. Try fewer or different terms."
+                    : `${result.total.toLocaleString()} matching records; showing ${result.papers.length}.`}
+                </p>
+                <ul className="library-source-list">
+                  {result.papers.map((paper) => (
+                    <li key={paper.id} className="library-source">
+                      <p className="library-source-authors">{authorsLine(paper)}</p>
+                      <h3 className="library-source-title">{paper.title}</h3>
+                      <div className="library-result-actions">
+                        <Button onClick={() => setInspected(paper)}>
+                          Inspect{savedIds.has(paper.id) ? " (saved)" : ""}
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       {sources.length > 0 && (
         <section className="library-saved" aria-label="Saved sources">
-          <div className="library-chips" role="group" aria-label="Filter saved sources">
-            {chips.map((chip) => (
-              <button
-                key={chip.key}
-                type="button"
-                className="library-chip"
-                aria-pressed={statusFilter === chip.key}
-                onClick={() => setStatusFilter(chip.key)}
-              >
-                {chip.label} {chip.count}
-              </button>
-            ))}
-          </div>
-          <table className="library-ledger">
-            <thead>
-              <tr>
-                <th>Saved source</th>
-                <th>Journal</th>
-                <th>Year</th>
-                <th>Reading status</th>
-                <th>Saved</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((source) => (
-                <tr
-                  key={source.paper.id}
-                  aria-current={selected?.paper.id === source.paper.id || undefined}
-                  onClick={() => setSelectedId(source.paper.id)}
+          <div className="library-ledger-col">
+            <div className="library-chips" role="group" aria-label="Filter saved sources">
+              {chips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  className="library-chip"
+                  aria-pressed={statusFilter === chip.key}
+                  onClick={() => setStatusFilter(chip.key)}
                 >
-                  <td>
-                    {/* The row's real selection control, for keyboard and
-                        assistive tech; the row click is the wide target. */}
-                    <button
-                      type="button"
-                      className="library-row-select"
-                      aria-pressed={selected?.paper.id === source.paper.id}
-                      onClick={() => setSelectedId(source.paper.id)}
-                    >
-                      <span className="library-source-authors">
-                        {authorsLine(source.paper)}
-                      </span>
-                      <span className="library-source-title">
-                        {source.paper.title}
-                      </span>
-                    </button>
-                  </td>
-                  <td className="library-cell">{source.paper.journal || "—"}</td>
-                  <td className="library-cell">{source.paper.year ?? "—"}</td>
-                  <td className="library-cell">{STATUS_LABELS[source.status]}</td>
-                  <td className="library-cell">{savedOn(source)}</td>
-                </tr>
+                  {chip.label} {chip.count}
+                </button>
               ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <p className="library-hint">
-              No saved source has this reading status yet.
-            </p>
-          )}
-          {filtered.length > 0 && !selected && (
-            <p className="library-hint">Select a row to edit its note and status.</p>
-          )}
+            </div>
+            <table className="library-ledger">
+              <thead>
+                <tr>
+                  <th>Saved source</th>
+                  <th>Journal</th>
+                  <th>Year</th>
+                  <th>Reading status</th>
+                  <th>Saved</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((source) => (
+                  <tr
+                    key={source.paper.id}
+                    aria-current={selected?.paper.id === source.paper.id || undefined}
+                    onClick={() => selectSource(source.paper.id)}
+                  >
+                    <td>
+                      {/* The row's real selection control, for keyboard and
+                          assistive tech; the row click is the wide target. */}
+                      <button
+                        type="button"
+                        className="library-row-select"
+                        aria-pressed={selected?.paper.id === source.paper.id}
+                        onClick={() => selectSource(source.paper.id)}
+                      >
+                        <span className="library-source-authors">
+                          {authorsLine(source.paper)}
+                        </span>
+                        <span className="library-source-title">
+                          {source.paper.title}
+                        </span>
+                      </button>
+                    </td>
+                    <td className="library-cell">{source.paper.journal || "—"}</td>
+                    <td className="library-cell">{source.paper.year ?? "—"}</td>
+                    <td className="library-cell">{STATUS_LABELS[source.status]}</td>
+                    <td className="library-cell">{savedOn(source)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {filtered.length === 0 && (
+              <p className="library-hint">
+                No saved source has this reading status yet.
+              </p>
+            )}
+            {filtered.length > 0 && !selected && (
+              <p className="library-hint">Select a row to edit its note and status.</p>
+            )}
+          </div>
 
           {selected && (
-            // The detail edits the selected (washed, marked) row above, so
-            // it does not restate the saved source.
-            <div className="library-detail">
+            // The margin note beside the ledger: it edits the selected
+            // (washed, marked) row, titled so it reads on its own at scale.
+            <aside
+              ref={detailRef}
+              className="library-detail"
+              aria-label="Selected source"
+            >
+              <h2 className="library-detail-title">{selected.paper.title}</h2>
               <p className="library-source-standing">
                 Saved for reading — not an approved citation. Approving
                 evidence is a separate, per-sentence decision.
@@ -189,7 +284,7 @@ export function Library({ project, onProjectChange }: LibraryProps) {
               <div className="library-source-fields">
                 <TextArea
                   label="Reading note"
-                  rows={2}
+                  rows={4}
                   maxLength={2000}
                   value={selected.note}
                   onChange={(event) =>
@@ -218,57 +313,10 @@ export function Library({ project, onProjectChange }: LibraryProps) {
                   ))}
                 </Select>
               </div>
-            </div>
+            </aside>
           )}
         </section>
       )}
-
-      <section className="library-find" aria-label="Find papers">
-        <h3 className="library-section-title">Find papers</h3>
-        <form className="library-search-form" onSubmit={search}>
-          <TextInput
-            label="Search Europe PMC"
-            type="search"
-            maxLength={300}
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
-            placeholder="e.g. OSK glaucoma mice"
-            hint="Nothing is sent until you choose Search papers. Results are candidates to inspect, never automatic citations."
-          />
-          <Button variant="primary" type="submit" disabled={searching}>
-            {searching ? "Searching…" : "Search papers"}
-          </Button>
-        </form>
-        {searchError && (
-          <p className="library-search-error" role="alert">
-            {searchError}
-          </p>
-        )}
-        <div aria-live="polite">
-          {result && (
-            <>
-              <p className="library-result-count">
-                {result.total === 0
-                  ? "No matching records on Europe PMC. Try fewer or different terms."
-                  : `${result.total.toLocaleString()} matching records; showing ${result.papers.length}.`}
-              </p>
-              <ul className="library-source-list">
-                {result.papers.map((paper) => (
-                  <li key={paper.id} className="library-source">
-                    <p className="library-source-authors">{authorsLine(paper)}</p>
-                    <h4 className="library-source-title">{paper.title}</h4>
-                    <div className="library-result-actions">
-                      <Button onClick={() => setInspected(paper)}>
-                        Inspect{savedIds.has(paper.id) ? " (saved)" : ""}
-                      </Button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      </section>
 
       <Dialog
         open={inspected !== undefined}

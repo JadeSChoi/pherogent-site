@@ -132,7 +132,7 @@ describe("AppShell", () => {
         .getByRole("link", { name: /Library/ })
         .getAttribute("aria-current"),
     ).toBe("page");
-    expect(screen.getByText("Find papers")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add paper" })).toBeTruthy();
     expect(screen.queryByLabelText("Project")).toBeNull();
 
     fireEvent.click(within(rail).getByRole("link", { name: /Manuscript/ }));
@@ -187,14 +187,14 @@ describe("AppShell", () => {
   it("rewrites an unclean deep link to the path of the route it renders", () => {
     window.history.replaceState(null, "", "/library/");
     render(<Harness />);
-    expect(screen.getByText("Find papers")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add paper" })).toBeTruthy();
     expect(window.location.pathname).toBe("/library");
   });
 
   it("follows browser back and forward through popstate", () => {
     render(<Harness />);
     fireEvent.click(within(railNav()).getByRole("link", { name: /Library/ }));
-    expect(screen.getByText("Find papers")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add paper" })).toBeTruthy();
     window.history.replaceState(null, "", "/");
     act(() => {
       window.dispatchEvent(new PopStateEvent("popstate"));

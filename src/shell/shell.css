@@ -107,15 +107,22 @@
 
   .shell-topnav {
     display: block;
+    /* More destinations than a phone is wide: the nav scrolls within
+       itself rather than widening the page. */
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
   }
 
   .shell-topnav .ui-nav {
     flex-direction: row;
     gap: var(--space-4);
+    width: max-content;
   }
 
   .shell-topnav .ui-nav-item {
     padding: 0 0 var(--space-1);
+    white-space: nowrap;
   }
 
   .shell-topnav .ui-nav-item[aria-current="page"] {

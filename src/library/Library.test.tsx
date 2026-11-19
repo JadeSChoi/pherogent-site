@@ -77,6 +77,7 @@ function Harness({ initial }: { initial?: Project }) {
 }
 
 const searchFixture = async () => {
+  fireEvent.click(screen.getByRole("button", { name: "Add paper" }));
   fireEvent.change(screen.getByLabelText("Search Europe PMC"), {
     target: { value: "OSK glaucoma mice" },
   });
@@ -88,6 +89,51 @@ const searchFixture = async () => {
 
 describe("Library", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("opens the Europe PMC search from Add paper and closes it again", () => {
+    render(<Harness />);
+    // The search is a disclosure, not a static section below the ledger.
+    expect(screen.queryByLabelText("Search Europe PMC")).toBeNull();
+
+    const add = screen.getByRole("button", { name: "Add paper" });
+    expect(add.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(add);
+    expect(add.getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByLabelText("Search Europe PMC")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByLabelText("Search Europe PMC")).toBeNull();
+    expect(add.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keeps the selection, filter, and results across search open and close", async () => {
+    stubSearch();
+    render(<Harness initial={projectWithSources("to-read", "useful", "useful")} />);
+    const saved = screen.getByRole("region", { name: "Saved sources" });
+    const ledger = within(saved).getByRole("table");
+    fireEvent.click(within(saved).getByRole("button", { name: "Useful 2" }));
+    fireEvent.click(within(ledger).getByText("Paper two"));
+
+    await searchFixture();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(
+      (screen.getByLabelText("Reading note") as HTMLTextAreaElement).value,
+    ).toBe("Note two");
+    expect(
+      within(saved)
+        .getByRole("button", { name: "Useful 2" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    // Reopening brings the previous results back rather than a blank search.
+    fireEvent.click(screen.getByRole("button", { name: "Add paper" }));
+    expect(
+      screen.getByText(
+        "Reprogramming to recover youthful epigenetic information and restore vision.",
+      ),
+    ).toBeTruthy();
+  });
 
   it("searches Europe PMC and renders the results as candidates", async () => {
     stubSearch();
@@ -123,11 +169,13 @@ describe("Library", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save to project" }));
 
     const saved = screen.getByRole("region", { name: "Saved sources" });
+    // Saving selects the paper, so its title shows in the ledger row and
+    // again as the detail heading.
     expect(
-      within(saved).getByText(
+      within(saved).getAllByText(
         "Reprogramming to recover youthful epigenetic information and restore vision.",
       ),
-    ).toBeTruthy();
+    ).toHaveLength(2);
     expect(
       within(saved).getAllByText(/not an approved citation/i).length,
     ).toBeGreaterThan(0);
@@ -174,16 +222,19 @@ describe("Library", () => {
   it("filters the ledger by reading status, with counts on the chips", () => {
     render(<Harness initial={projectWithSources("to-read", "useful", "useful")} />);
     const saved = screen.getByRole("region", { name: "Saved sources" });
+    // Queries scope to the ledger table: the selected source's title also
+    // shows as the detail heading.
+    const ledger = within(saved).getByRole("table");
     expect(within(saved).getByRole("button", { name: "All 3" })).toBeTruthy();
-    expect(within(saved).getByText("Paper one")).toBeTruthy();
+    expect(within(ledger).getByText("Paper one")).toBeTruthy();
 
     fireEvent.click(within(saved).getByRole("button", { name: "Useful 2" }));
-    expect(within(saved).queryByText("Paper one")).toBeNull();
-    expect(within(saved).getByText("Paper two")).toBeTruthy();
-    expect(within(saved).getByText("Paper three")).toBeTruthy();
+    expect(within(ledger).queryByText("Paper one")).toBeNull();
+    expect(within(ledger).getByText("Paper two")).toBeTruthy();
+    expect(within(ledger).getByText("Paper three")).toBeTruthy();
 
     fireEvent.click(within(saved).getByRole("button", { name: "All 3" }));
-    expect(within(saved).getByText("Paper one")).toBeTruthy();
+    expect(within(ledger).getByText("Paper one")).toBeTruthy();
   });
 
   it("selects a ledger row to edit that source's note and status", () => {
@@ -209,6 +260,24 @@ describe("Library", () => {
     expect((screen.getByLabelText("Reading note") as HTMLTextAreaElement).value).toBe(
       "Note one",
     );
+  });
+
+  it("titles the detail with the selected source's title", () => {
+    render(<Harness initial={projectWithSources("to-read", "useful")} />);
+    const detail = screen.getByRole("complementary", { name: "Selected source" });
+    expect(within(detail).getByRole("heading", { name: "Paper one" })).toBeTruthy();
+
+    // The title now appears in both the ledger row and the detail.
+    const saved = screen.getByRole("region", { name: "Saved sources" });
+    expect(within(saved).getAllByText("Paper one")).toHaveLength(2);
+
+    fireEvent.click(within(within(saved).getByRole("table")).getByText("Paper two"));
+    expect(
+      within(screen.getByRole("complementary", { name: "Selected source" })).getByRole(
+        "heading",
+        { name: "Paper two" },
+      ),
+    ).toBeTruthy();
   });
 
   it("hides the detail instead of retargeting it when the filter excludes the selection", () => {
@@ -238,6 +307,7 @@ describe("Library", () => {
     );
     render(<Harness />);
 
+    fireEvent.click(screen.getByRole("button", { name: "Add paper" }));
     fireEvent.change(screen.getByLabelText("Search Europe PMC"), {
       target: { value: "oct4" },
     });

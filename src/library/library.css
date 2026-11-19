@@ -1,7 +1,14 @@
 /* The Library as the Folio ruled ledger (ADR 0003, prototype Direction D
    revised): Archivo data columns under hairline rules, serif italic
    reference titles, a wash plus inset marker on the selected row, and
-   filter chips above. Entries separate with rules, never cards. */
+   filter chips above. Entries separate with rules, never cards. Add paper
+   (top right) discloses the Europe PMC search; the selected source's
+   detail sits beside the ledger as a margin note when the page is wide
+   enough, under the table otherwise. */
+
+.library-page {
+  container-type: inline-size;
+}
 
 .library-page-head {
   display: flex;
@@ -24,6 +31,10 @@
   color: var(--color-ink-soft);
   font-style: italic;
   font-size: var(--text-base);
+}
+
+.library-add {
+  margin-left: auto;
 }
 
 .library-saved {
@@ -146,15 +157,58 @@
   white-space: nowrap;
 }
 
+.library-ledger-col {
+  min-width: 0;
+}
+
 .library-detail {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-rule-strong);
 }
 
+.library-detail-title {
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+/* Wide pages: the detail becomes a sticky margin note beside the ledger,
+   separated by a hairline, so it never sits below a long table. */
+@container (min-width: 56rem) {
+  .library-saved {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18rem;
+    column-gap: var(--space-6);
+    align-items: start;
+  }
+
+  .library-detail {
+    position: sticky;
+    top: var(--space-5);
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+    border-left: 1px solid var(--color-rule-strong);
+    padding-left: var(--space-5);
+  }
+}
+
 .library-find {
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-ink);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-ink);
+}
+
+.library-find-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
 }
 
 .library-section-title {
