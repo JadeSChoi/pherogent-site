@@ -84,11 +84,8 @@ export function WorkspaceControls({
   };
 
   return (
-    <section className="workspace-overview" aria-label="Projects">
-      <div className="workspace-page-head">
-        <h1 className="workspace-project-name">{active.name}</h1>
-        {active.question && <p className="workspace-question">{active.question}</p>}
-      </div>
+    <section className="workspace-files" aria-label="Projects and backups">
+      <h2>Projects and backups</h2>
       <div className="workspace-switcher">
         <Select
           label="Project"
@@ -105,9 +102,7 @@ export function WorkspaceControls({
         </Select>
       </div>
       <div className="workspace-actions">
-        <Button variant="primary" onClick={() => setNewProjectOpen(true)}>
-          New project
-        </Button>
+        <Button onClick={() => setNewProjectOpen(true)}>New project</Button>
         <Button onClick={download}>Export backup</Button>
         <Button onClick={() => fileInput.current?.click()}>Import backup</Button>
       </div>

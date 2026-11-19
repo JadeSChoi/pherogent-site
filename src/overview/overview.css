@@ -1,0 +1,89 @@
+/* The Overview's project summary — the folio's opening page: the serif
+   head over a short ledger of the project's standing, closing on the one
+   next action. Figures are data, so they sit in Archivo with dotted
+   leaders, like every ledger surface; the reason line reads in the serif. */
+
+.overview-summary {
+  max-width: 600px;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.overview-head {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-ink);
+}
+
+.overview-project-name {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.overview-question {
+  margin: var(--space-1) 0 0;
+  color: var(--color-ink-soft);
+  font-style: italic;
+  font-size: var(--text-base);
+}
+
+.overview-rows {
+  margin: 0;
+}
+
+.overview-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+
+.overview-row dt {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--color-ink-soft);
+}
+
+.overview-row dt::after {
+  content: "";
+  flex: 1;
+  min-width: var(--space-4);
+  border-bottom: 1px dotted var(--color-rule-strong);
+  margin: 0 0 3px var(--space-2);
+}
+
+.overview-row dd {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.overview-none {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-mute);
+}
+
+.overview-next {
+  border-top: 1px solid var(--color-rule-strong);
+  padding-top: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.overview-reason {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  color: var(--color-ink-soft);
+  max-width: 54ch;
+}

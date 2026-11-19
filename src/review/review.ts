@@ -469,6 +469,49 @@ export function undoDecision(project: Project, sentenceId: string): Project {
   return withWordingReplaced(project, found.pass, found.sentence, decision.before, null);
 }
 
+/** Review progress across every Section, as pure counts. */
+export type ReviewProgress = {
+  /** Reviewable sentences carrying a decision that stands. */
+  decided: number;
+  /** Reviewable sentences across the whole Manuscript. */
+  total: number;
+  /** Prepared sentences awaiting a decision in current (non-stale) passes. */
+  awaitingDecision: number;
+};
+
+/**
+ * Review progress across the whole Manuscript: how many of its reviewable
+ * sentences carry a decision, and how many prepared ones still await one.
+ * A stale pass contributes only the decisions that would survive
+ * re-preparation (the ADR 0005 carry rule), so the figure never counts a
+ * decision against changed text. A pure read; it records and prepares
+ * nothing.
+ */
+export function reviewProgress(project: Project): ReviewProgress {
+  const manuscript = project.manuscript ?? defaultManuscript(project);
+  let decided = 0;
+  let total = 0;
+  let awaitingDecision = 0;
+  for (const section of manuscript.sections) {
+    const found = splitSentences(section.text);
+    total += found.length;
+    const pass = reviewFor(project, section.id);
+    if (!pass) continue;
+    const decidedSentences = pass.sentences.filter((sentence) => sentence.decision);
+    if (!isPassStale(project, pass)) {
+      decided += decidedSentences.length;
+      awaitingDecision += pass.sentences.length - decidedSentences.length;
+      continue;
+    }
+    const foundCounts = countByText(found.map((candidate) => candidate.text));
+    const passCounts = countByText(pass.sentences.map((sentence) => sentence.text));
+    decided += decidedSentences.filter((sentence) =>
+      carriesOver(sentence.text, foundCounts, passCounts),
+    ).length;
+  }
+  return { decided, total, awaitingDecision };
+}
+
 export type PrepareOutcome = "prepared" | "no_sentences" | "no_section";
 
 const countByText = (texts: string[]): Map<string, number> => {
@@ -476,6 +519,18 @@ const countByText = (texts: string[]): Map<string, number> => {
   for (const text of texts) counts.set(text, (counts.get(text) ?? 0) + 1);
   return counts;
 };
+
+/**
+ * The ADR 0005 carry rule: working state and decisions survive
+ * re-preparation only on a byte-identical sentence unique on both sides —
+ * attaching a decision to the wrong duplicate would be worse than losing
+ * it.
+ */
+const carriesOver = (
+  text: string,
+  foundCounts: Map<string, number>,
+  previousCounts: Map<string, number>,
+): boolean => foundCounts.get(text) === 1 && previousCounts.get(text) === 1;
 
 /**
  * Prepares one Section's sentences for review. A byte-identical, uniquely
@@ -501,11 +556,7 @@ export function withReviewPrepared(
   let undecided = 0;
   for (let at = 0; at < found.length; at++) {
     const candidate = found[at];
-    // Unique on both sides, or no carry: attaching a decision to the
-    // wrong duplicate would be worse than losing it (ADR 0005).
-    const unique =
-      foundCounts.get(candidate.text) === 1 && previousCounts.get(candidate.text) === 1;
-    const prior = unique
+    const prior = carriesOver(candidate.text, foundCounts, previousCounts)
       ? previous.find((sentence) => sentence.text === candidate.text)
       : undefined;
     const decision = prior?.decision ?? null;

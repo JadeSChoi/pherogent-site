@@ -7,6 +7,7 @@ import {
   keywordOverlap,
   quoteMatches,
   recordDecision,
+  reviewProgress,
   undoDecision,
   withEvidenceCheckRecorded,
   withReviewPrepared,
@@ -737,6 +738,82 @@ describe("context-changed note", () => {
 
     const undone = undoDecision(current, second.id);
     expect(undone.reviews![0].sentences[0].contextChanged).toBe(false);
+  });
+});
+
+describe("reviewProgress", () => {
+  const FIRST = "Reprogramming restored visual function in aged mice.";
+  const SECOND = "We measured axon density at four and eight weeks.";
+
+  it("counts reviewable sentences across all Sections, with zero decided before any pass", () => {
+    const { project } = projectWithSections(`${FIRST} ${SECOND}`, FIRST);
+    expect(reviewProgress(project)).toEqual({
+      decided: 0,
+      total: 3,
+      awaitingDecision: 0,
+    });
+  });
+
+  it("counts decisions across every Section's pass", () => {
+    const { project, firstId, secondId } = projectWithSections(FIRST, SECOND);
+    let current = withReviewPrepared(project, firstId).project;
+    current = withReviewPrepared(current, secondId).project;
+    expect(reviewProgress(current)).toEqual({
+      decided: 0,
+      total: 2,
+      awaitingDecision: 2,
+    });
+    current = keepOriginal(
+      current,
+      current.reviews!.find((pass) => pass.sectionId === firstId)!.sentences[0].id,
+    );
+    current = keepOriginal(
+      current,
+      current.reviews!.find((pass) => pass.sectionId === secondId)!.sentences[0].id,
+    );
+    expect(reviewProgress(current)).toEqual({
+      decided: 2,
+      total: 2,
+      awaitingDecision: 0,
+    });
+  });
+
+  it("skips heading lines and short fragments, like preparation does", () => {
+    const { project } = projectWithSection(`# Working notes\n${FIRST} Tiny.`);
+    expect(reviewProgress(project)).toEqual({
+      decided: 0,
+      total: 1,
+      awaitingDecision: 0,
+    });
+  });
+
+  it("counts a stale pass's decision only where it would carry to unchanged text", () => {
+    const { project, firstId } = projectWithSections(`${FIRST} ${SECOND}`, "");
+    let current = withReviewPrepared(project, firstId).project;
+    const pass = current.reviews![0];
+    current = keepOriginal(current, pass.sentences[0].id);
+    current = keepOriginal(current, pass.sentences[1].id);
+    // The first sentence's wording changes after its decision: that
+    // decision no longer counts, while the untouched second one still does.
+    const edited: Project = {
+      ...current,
+      manuscript: {
+        ...current.manuscript!,
+        sections: current.manuscript!.sections.map((section) =>
+          section.id === firstId
+            ? { ...section, text: `Rewritten opening sentence entirely. ${SECOND}` }
+            : section,
+        ),
+      },
+    };
+    expect(isReviewStale(edited, firstId)).toBe(true);
+    // The stale pass's undecided sentences are not awaiting a decision:
+    // nothing on a stale pass is actionable until it is prepared again.
+    expect(reviewProgress(edited)).toEqual({
+      decided: 1,
+      total: 2,
+      awaitingDecision: 0,
+    });
   });
 });
 

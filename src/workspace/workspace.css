@@ -1,28 +1,23 @@
-/* The Overview reads as the prototype's page head: serif title over an
-   italic question, ruled off from the controls below. */
-.workspace-page-head {
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-ink);
+/* The project and backup controls, ruled off below the Overview's summary
+   (issue #23): present and quiet, never competing with the next action.
+   The page head now leads the summary (src/overview). */
+.workspace-files {
+  max-width: 600px;
+  margin-top: var(--space-6);
+  border-top: 1px solid var(--color-rule);
+  padding-top: var(--space-4);
 }
 
-.workspace-project-name {
+.workspace-files h2 {
   margin: 0;
   font-family: var(--font-serif);
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
   font-weight: 500;
-  letter-spacing: -0.01em;
+  line-height: 1.2;
 }
-
-.workspace-question {
-  margin: var(--space-1) 0 0;
-  color: var(--color-ink-soft);
-  font-style: italic;
-  font-size: var(--text-base);
-}
-
 
 .workspace-switcher {
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
   max-width: 24rem;
 }
 

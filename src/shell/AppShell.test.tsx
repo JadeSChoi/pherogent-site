@@ -95,6 +95,31 @@ describe("AppShell", () => {
     expect(screen.queryByRole("link", { name: /Activity/ })).toBeNull();
   });
 
+  it("leads the Overview with the project summary; backups follow, API status is gone", () => {
+    render(<Harness />);
+    const summary = screen.getByRole("region", { name: "Project summary" });
+    expect(within(summary).getByRole("heading", { name: "Vision recovery" })).toBeTruthy();
+    const controls = screen.getByRole("region", { name: "Projects and backups" });
+    expect(
+      summary.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Closed dialogs keep their own primaries in the DOM; the page shows one.
+    const primaries = [...document.querySelectorAll(".ui-button-primary")].filter(
+      (button) => !button.closest("dialog"),
+    );
+    expect(primaries).toHaveLength(1);
+    expect(screen.queryByText("API status")).toBeNull();
+  });
+
+  it("follows the summary's next action to its destination", () => {
+    render(<Harness />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Prepare sentences for review" }),
+    );
+    expect(window.location.pathname).toBe("/manuscript");
+    expect(screen.getByLabelText("Document title")).toBeTruthy();
+  });
+
   it("navigates between destinations without a reload, marking the current one", () => {
     render(<Harness />);
     expect(screen.getByLabelText("Project")).toBeTruthy();

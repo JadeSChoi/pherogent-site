@@ -40,6 +40,12 @@ const seedTwoProjects = () =>
     }),
   );
 
+/** The project the switcher shows as active; the page head lives in the
+ * Overview summary now, not in these controls. */
+const activeName = () =>
+  (screen.getByLabelText("Project") as HTMLSelectElement).selectedOptions[0]
+    .textContent;
+
 describe("WorkspaceControls", () => {
   beforeEach(() => localStorage.clear());
 
@@ -55,35 +61,27 @@ describe("WorkspaceControls", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Create project" }));
 
-    expect(
-      screen.getByRole("heading", { name: "Coral bleaching thresholds" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("At what temperature does fixture coral bleach?"),
-    ).toBeTruthy();
+    expect(activeName()).toBe("Coral bleaching thresholds");
 
     cleanup();
     render(<Controls />);
-    expect(
-      screen.getByRole("heading", { name: "Coral bleaching thresholds" }),
-    ).toBeTruthy();
+    expect(activeName()).toBe("Coral bleaching thresholds");
   });
 
   it("switches the active project and persists the choice", () => {
     seedTwoProjects();
     render(<Controls />);
-    expect(screen.getByRole("heading", { name: "Reef thresholds" })).toBeTruthy();
+    expect(activeName()).toBe("Reef thresholds");
 
     fireEvent.change(screen.getByLabelText("Project"), {
       target: { value: "project-two" },
     });
 
-    expect(screen.getByRole("heading", { name: "Axolotl limbs" })).toBeTruthy();
-    expect(screen.getByText("Which signals initiate regrowth?")).toBeTruthy();
+    expect(activeName()).toBe("Axolotl limbs");
 
     cleanup();
     render(<Controls />);
-    expect(screen.getByRole("heading", { name: "Axolotl limbs" })).toBeTruthy();
+    expect(activeName()).toBe("Axolotl limbs");
   });
 
   it("rejects a malformed import without touching existing data", async () => {
@@ -101,7 +99,7 @@ describe("WorkspaceControls", () => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toMatch(/JSON/i);
     expect(localStorage.getItem(STORAGE_KEY)).toBe(before);
-    expect(screen.getByRole("heading", { name: "Reef thresholds" })).toBeTruthy();
+    expect(activeName()).toBe("Reef thresholds");
   });
 
   it("imports a backup after the author confirms the replacement", async () => {
@@ -130,13 +128,9 @@ describe("WorkspaceControls", () => {
       await screen.findByRole("button", { name: "Replace workspace" }),
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Restored enzyme project" }),
-    ).toBeTruthy();
+    expect(activeName()).toBe("Restored enzyme project");
     cleanup();
     render(<Controls />);
-    expect(
-      screen.getByRole("heading", { name: "Restored enzyme project" }),
-    ).toBeTruthy();
+    expect(activeName()).toBe("Restored enzyme project");
   });
 });

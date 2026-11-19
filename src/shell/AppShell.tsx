@@ -6,11 +6,11 @@ import { useResearchCheckRun } from "../research/useResearchCheckRun";
 import { ManuscriptPanel } from "../manuscript/ManuscriptPanel";
 import { NotebookPanel } from "../notebook/NotebookPanel";
 import { manuscriptWordCount } from "../storage/workspace";
+import { OverviewSummary } from "../overview/OverviewSummary";
 import { UsageMeterPanel } from "../usage/UsageMeterPanel";
 import { Nav, type NavItem } from "../ui";
 import { WorkspaceControls } from "../workspace/WorkspaceControls";
 import type { WorkspaceState } from "../workspace/useWorkspace";
-import { ApiStatus } from "./ApiStatus";
 import { pathFor, routeFromPath, useRoute, type Route } from "./router";
 import "./shell.css";
 
@@ -51,13 +51,13 @@ export function AppShell(state: WorkspaceState) {
   const page: Record<Route, React.ReactNode> = {
     overview: (
       <>
+        <OverviewSummary project={activeProject} onNavigate={navigate} />
         <WorkspaceControls
           workspace={workspace}
           activeProject={activeProject}
           saved={saved}
           onCommit={commit}
         />
-        <ApiStatus />
       </>
     ),
     library: <Library project={activeProject} onProjectChange={commitProject} />,
