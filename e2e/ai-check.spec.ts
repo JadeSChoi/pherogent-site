@@ -44,14 +44,21 @@ test("the consented AI Evidence check runs end to end against the faked provider
       }),
   );
 
-  // Save the source the check will cite.
+  // Save the source the check will cite. The search discloses from the
+  // page head's Add paper button (#24); it no longer sits on the page.
   await page.goto("/library");
+  await page.getByRole("button", { name: "Add paper" }).click();
   await page.getByLabel("Search Europe PMC").fill("OSK glaucoma mice");
   await page.getByRole("button", { name: "Search papers" }).click();
   await page.getByRole("button", { name: "Inspect" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Save to project" }).click();
+  // Scoped to the ledger table: the selected-source detail restates the
+  // title in its own heading (#24), so the region matches it twice.
   await expect(
-    page.getByRole("region", { name: "Saved sources" }).getByText(paperTitle),
+    page
+      .getByRole("region", { name: "Saved sources" })
+      .getByRole("table")
+      .getByText(paperTitle),
   ).toBeVisible();
 
   // Write the sentence and prepare it for review.

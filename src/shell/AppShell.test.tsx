@@ -120,6 +120,34 @@ describe("AppShell", () => {
     expect(screen.getByLabelText("Document title")).toBeTruthy();
   });
 
+  it("opens the Library with the search disclosed from 'Save your first source'", () => {
+    const project = createProject("Fresh start", "");
+    render(
+      <Harness
+        initial={{ version: 3, activeProjectId: project.id, projects: [project] }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save your first source" }));
+    expect(window.location.pathname).toBe("/library");
+    expect(screen.getByLabelText("Search Europe PMC")).toBeTruthy();
+  });
+
+  it("keeps the Library's search closed when it opens from the rail afterwards", () => {
+    const project = createProject("Fresh start", "");
+    render(
+      <Harness
+        initial={{ version: 3, activeProjectId: project.id, projects: [project] }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save your first source" }));
+    expect(screen.getByLabelText("Search Europe PMC")).toBeTruthy();
+    const rail = railNav();
+    fireEvent.click(within(rail).getByRole("link", { name: /Manuscript/ }));
+    fireEvent.click(within(rail).getByRole("link", { name: /Library/ }));
+    expect(screen.queryByLabelText("Search Europe PMC")).toBeNull();
+    expect(screen.getByRole("button", { name: "Add paper" })).toBeTruthy();
+  });
+
   it("navigates between destinations without a reload, marking the current one", () => {
     render(<Harness />);
     expect(screen.getByLabelText("Project")).toBeTruthy();

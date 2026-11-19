@@ -14,6 +14,9 @@ import "./library.css";
 type LibraryProps = {
   project: Project;
   onProjectChange: (next: Project) => void;
+  /** Open with the Europe PMC search already disclosed, as the Overview's
+      "Save your first source" action promises. */
+  initialSearchOpen?: boolean;
 };
 
 const STATUS_LABELS: Record<ReadingStatus, string> = {
@@ -40,13 +43,17 @@ const savedOn = (source: SavedSource): string => {
     : date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 };
 
-export function Library({ project, onProjectChange }: LibraryProps) {
+export function Library({
+  project,
+  onProjectChange,
+  initialSearchOpen = false,
+}: LibraryProps) {
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string>();
   const [result, setResult] = useState<SearchResult>();
   const [inspected, setInspected] = useState<Paper>();
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(initialSearchOpen);
   const [statusFilter, setStatusFilter] = useState<ReadingStatus | "all">("all");
   const [selectedId, setSelectedId] = useState<string>();
   const activeSearch = useRef<AbortController>(null);

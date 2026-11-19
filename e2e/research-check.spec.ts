@@ -51,9 +51,14 @@ test("the consented Research check runs end to end against the faked provider", 
   await expect(page.getByText(/Findings saved to the notebook/)).toBeVisible();
 
   // The paper is now a saved source in the Library, to read — not a citation.
+  // Scoped to the ledger table: the selected-source detail restates the title
+  // in its own heading (#24), so the region matches it twice.
   await go(page, /Library/);
   await expect(
-    page.getByRole("region", { name: "Saved sources" }).getByText(paperTitle),
+    page
+      .getByRole("region", { name: "Saved sources" })
+      .getByRole("table")
+      .getByText(paperTitle),
   ).toBeVisible();
 
   // The saved findings landed in the Notebook, labeled as AI suggestions.

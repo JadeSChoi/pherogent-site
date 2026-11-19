@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { SectionChatPanel } from "../chat/SectionChatPanel";
 import { useSectionChatRuns } from "../chat/useSectionChatRuns";
 import { Library } from "../library/Library";
@@ -7,6 +8,7 @@ import { ManuscriptPanel } from "../manuscript/ManuscriptPanel";
 import { NotebookPanel } from "../notebook/NotebookPanel";
 import { manuscriptWordCount } from "../storage/workspace";
 import { OverviewSummary } from "../overview/OverviewSummary";
+import type { SummaryDestination } from "../overview/summary";
 import { UsageMeterPanel } from "../usage/UsageMeterPanel";
 import { Nav, type NavItem } from "../ui";
 import { WorkspaceControls } from "../workspace/WorkspaceControls";
@@ -46,12 +48,25 @@ export function AppShell(state: WorkspaceState) {
     current: route === key,
   }));
 
-  const go = (href: string) => navigate(routeFromPath(href));
+  // The empty-project next action means "go find a paper", not merely "go to
+  // the Library": it carries the intent to open the Library's search. Plain
+  // navigation (rail, top nav) drops the intent, so the Library opens with
+  // its search closed there, as #24's owner-approved layout has it.
+  const [addPaperIntent, setAddPaperIntent] = useState(false);
+  const followNextAction = (destination: SummaryDestination) => {
+    setAddPaperIntent(destination === "library");
+    navigate(destination);
+  };
+
+  const go = (href: string) => {
+    setAddPaperIntent(false);
+    navigate(routeFromPath(href));
+  };
 
   const page: Record<Route, React.ReactNode> = {
     overview: (
       <>
-        <OverviewSummary project={activeProject} onNavigate={navigate} />
+        <OverviewSummary project={activeProject} onNavigate={followNextAction} />
         <WorkspaceControls
           workspace={workspace}
           activeProject={activeProject}
@@ -60,7 +75,13 @@ export function AppShell(state: WorkspaceState) {
         />
       </>
     ),
-    library: <Library project={activeProject} onProjectChange={commitProject} />,
+    library: (
+      <Library
+        project={activeProject}
+        onProjectChange={commitProject}
+        initialSearchOpen={addPaperIntent}
+      />
+    ),
     research: (
       // Keyed by project so the question field reseeds on a project switch.
       <ResearchCheckPanel
